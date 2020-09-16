@@ -47,6 +47,10 @@ You can override some defaults using environment variables defined in a file tha
   - `openmage-7f000001.nip.io` is used by default to resolve to `127.0.0.1`. See [nip.io](https://nip.io) for more info.
 - `HOST_PORT=8888`
    - `80` is used by default 
+- `ADMIN_HOST_NAME`
+  - `openmage-admin-7f000001.nip.io` is used by default to resolve to `127.0.0.1`. See [nip.io](https://nip.io) for more info.
+- `ADMIN_HOST_PORT`
+  - `81` is used by default to avoid conflicts with the frontend port
 - `ADMIN_EMAIL`
 - `ADMIN_USERNAME`
 - `ADMIN_PASSWORD`
@@ -70,6 +74,8 @@ clone the source files into this directory and then run `docker-compose build`.
 $ git clone https://github.com/meanbee/docker-magento.git
 $ docker build -t openmage/php-dev:7.3-cli docker-magento/7.3/cli
 $ docker push openmage/php-dev:7.3-cli
+$ docker build -t openmage/php-dev:7.3-fpm docker-magento/7.3/fpm
+$ docker push openmage/php-dev:7.3-fpm
 $ docker build -t openmage/php-dev:7.3-apache docker-magento/7.3/apache
 $ docker push openmage/php-dev:7.3-apache
 ```
