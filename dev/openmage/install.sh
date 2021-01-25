@@ -6,7 +6,7 @@ test -f .env && source .env
 
 chmod 777 ../../app/etc ../../media ../../var
 
-docker-compose up -d mysql apache
+docker-compose up -d mysql
 sleep 4
 
 echo "Starting services..."
