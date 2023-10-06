@@ -1,0 +1,110 @@
+{
+  "settings": {
+    "http": {
+      "header_read_timeout": 10,
+      "body_read_timeout": 10,
+      "idle_timeout": 180,
+      "max_body_size": 8388608,
+      "send_timeout": 180
+    }
+  },
+  "access_log": {
+    "path": "/dev/stdout",
+    "format": "$remote_addr - - [$time_local] \"$request_line\" $status $body_bytes_sent \"$header_referer\" \"$header_user_agent\""
+  },
+  "listeners": {
+    "*:80": {
+      "pass": "routes/main"
+    }
+  },
+  "routes": {
+    "main": [
+      {
+        "match": {
+          "host": "openmage-7f000001.nip.io"
+        },
+        "action": {
+          "share": "/var/www/pub/default$uri",
+          "fallback": {
+            "pass": "routes/app"
+          }
+        }
+      },
+      {
+        "match": {
+          "host": "openmage-admin-7f000001.nip.io"
+        },
+        "action": {
+          "share": "/var/www/pub/admin$uri",
+          "fallback": {
+            "pass": "routes/app"
+          }
+        }
+      }
+    ],
+    "app": [
+      {
+        "match": {
+          "uri": [
+            "/skin/*",
+            "/js/*",
+            "~^/errors/.*\\.(css|jpg|jpeg|gif|png|ico|webp)$"
+          ]
+        },
+        "action": {
+          "share": "/var/www/app$uri"
+        }
+      },
+      {
+        "match": {
+          "uri": "/media/*"
+        },
+        "action": {
+          "share": "/var/www/app$uri",
+          "fallback": {
+            "pass": "applications/frontend/get"
+          }
+        }
+      },
+      {
+        "match": {
+          "uri": [
+            "!/index.php/*",
+            "!/admin/*",
+            "!/api/*"
+          ]
+        },
+        "action": {
+          "pass": "applications/frontend/index"
+        }
+      }
+    ]
+  },
+  "applications": {
+    "frontend": {
+      "type": "php",
+      "processes": 20,
+      "user": "www-data",
+      "group": "www-data",
+      "targets": {
+        "index": {
+          "root": "/var/www/app",
+          "script": "index.php"
+        },
+        "get": {
+          "root": "/var/www/app",
+          "script": "get.php"
+        }
+      },
+      "options": {
+        "admin": {
+          "memory_limit": "256M",
+          "max_file_uploads": "4"
+        }
+      },
+      "environment": {
+        "XDEBUG_CONFIG": "mode=off"
+      }
+    }
+  }
+}
