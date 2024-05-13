@@ -22,5 +22,21 @@
     <div class="footer">
         <?php echo $this->getChildHtml() ?>
         <address class="copyright"><?php echo $this->getCopyright() ?></address>
+
+        ESM proof of concept:
+
+        <div id="app">This is it: {{ message }}</div>
+        <script type="module">
+          import { createApp } from 'vue'
+          import { name as themeName, vueVersion } from 'theme'
+
+          createApp({
+            data() {
+              return {
+                message: `Hello ${themeName} from Import Map! Vue version ${vueVersion}`
+              }
+            }
+          }).mount('#app')
+        </script>
     </div>
 </div>

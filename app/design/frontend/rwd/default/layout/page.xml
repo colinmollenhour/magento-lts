@@ -38,6 +38,12 @@
                 <action method="addJs"><script>varien/form.js</script></action>
                 <action method="addJs"><script>mage/translate.js</script></action>
                 <action method="addJs"><script>mage/cookies.js</script></action>
+                <action method="addStaticImport">
+                    <specifier>vue</specifier>
+                    <produrl>https://cdn.jsdelivr.net/npm/vue@3.4.27/dist/vue.esm-browser.prod.js</produrl>
+                    <devurl>https://cdn.jsdelivr.net/npm/vue@3.4.27/dist/vue.esm-browser.js</devurl>
+                </action>
+                <action method="addSkinImport"><specifier>theme</specifier><file>js/esm.js</file></action>
 
                 <block type="page/js_cookie" name="js_cookies" template="page/js/cookie.phtml"/>
 
