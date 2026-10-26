@@ -1,4 +1,5 @@
 <?php
+
 /**
  * OpenMage
  *
@@ -18,7 +19,7 @@ chdir(dirname(__DIR__, 1));
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-if (PHP_SAPI != 'cli') {
+if (PHP_SAPI !== 'cli') {
     exit(0);
 }
 
@@ -576,6 +577,7 @@ foreach ($todo as $search => $replace) {
             if (stripos($file, 'code/core') !== false) {
                 continue;
             }
+
             echo '  ',$file,"\n";
             file_put_contents($file, preg_replace('#[[:<:]]' . $search . '[[:>:]]#', $replace, file_get_contents($file)));
         }
