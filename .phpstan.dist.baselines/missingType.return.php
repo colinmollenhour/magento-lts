@@ -3282,6 +3282,16 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/code/core/Mage/Catalog/Model/Product/Option/Api.php',
 ];
 $ignoreErrors[] = [
+    'rawMessage' => 'Method Mage_Catalog_Model_Product_Option_Type_File::_assertResolvesInside() has no return type specified.',
+    'count' => 1,
+    'path' => __DIR__ . '/../app/code/core/Mage/Catalog/Model/Product/Option/Type/File.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Method Mage_Catalog_Model_Product_Option_Type_File::_throwInvalidFilePath() has no return type specified.',
+    'count' => 1,
+    'path' => __DIR__ . '/../app/code/core/Mage/Catalog/Model/Product/Option/Type/File.php',
+];
+$ignoreErrors[] = [
     'rawMessage' => 'Method Mage_Catalog_Model_Product_Type_Abstract::_removeNotApplicableAttributes() has no return type specified.',
     'count' => 1,
     'path' => __DIR__ . '/../app/code/core/Mage/Catalog/Model/Product/Type/Abstract.php',
@@ -9845,6 +9855,11 @@ $ignoreErrors[] = [
     'rawMessage' => 'Method OpenMage\\Tests\\Unit\\Mage\\Core\\Model\\LoggerTest::testLog() has no return type specified.',
     'count' => 1,
     'path' => __DIR__ . '/../tests/unit/Mage/Core/Model/LoggerTest.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Method Varien_Object@anonymous/tests/unit/Varien/Filter/TemplateTest.php:31::getConfig() has no return type specified.',
+    'count' => 1,
+    'path' => __DIR__ . '/../tests/unit/Varien/Filter/TemplateTest.php',
 ];
 
 return ['parameters' => ['ignoreErrors' => $ignoreErrors]];

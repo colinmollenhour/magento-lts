@@ -2077,6 +2077,11 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/code/core/Mage/Adminhtml/controllers/UrlrewriteController.php',
 ];
 $ignoreErrors[] = [
+    'rawMessage' => 'Only booleans are allowed in an if condition, int given.',
+    'count' => 1,
+    'path' => __DIR__ . '/../app/code/core/Mage/Api/Helper/Data.php',
+];
+$ignoreErrors[] = [
     'rawMessage' => 'Only booleans are allowed in an if condition, array|false given.',
     'count' => 1,
     'path' => __DIR__ . '/../app/code/core/Mage/Api/Model/Config.php',
@@ -4858,7 +4863,12 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Only booleans are allowed in an if condition, array<Varien_Simplexml_Element>|false|null given.',
-    'count' => 3,
+    'count' => 2,
+    'path' => __DIR__ . '/../app/code/core/Mage/Core/Model/Layout/Validator.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Only booleans are allowed in an if condition, array<Varien_Simplexml_Element>|null given.',
+    'count' => 1,
     'path' => __DIR__ . '/../app/code/core/Mage/Core/Model/Layout/Validator.php',
 ];
 $ignoreErrors[] = [
@@ -5530,6 +5540,16 @@ $ignoreErrors[] = [
     'rawMessage' => 'Only booleans are allowed in an if condition, string given.',
     'count' => 1,
     'path' => __DIR__ . '/../app/code/core/Mage/Downloadable/Helper/Download.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Only booleans are allowed in an if condition, string|false given.',
+    'count' => 1,
+    'path' => __DIR__ . '/../app/code/core/Mage/Downloadable/Helper/Download.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Only booleans are allowed in an if condition, array<string, string> given.',
+    'count' => 2,
+    'path' => __DIR__ . '/../app/code/core/Mage/Downloadable/Model/Link/UrlAudit.php',
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Only booleans are allowed in an if condition, array<int|string, string> given.',
@@ -9867,11 +9887,6 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/design/frontend/base/default/template/checkout/total/tax.phtml',
 ];
 $ignoreErrors[] = [
-    'rawMessage' => 'Only booleans are allowed in an if condition, array given.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/design/frontend/base/default/template/core/messages.phtml',
-];
-$ignoreErrors[] = [
     'rawMessage' => 'Only booleans are allowed in an if condition, array<Mage_Customer_Model_Address>|bool given.',
     'count' => 1,
     'path' => __DIR__ . '/../app/design/frontend/base/default/template/customer/address/book.phtml',
@@ -11360,6 +11375,11 @@ $ignoreErrors[] = [
     'rawMessage' => 'Only booleans are allowed in an if condition, int|string|null given.',
     'count' => 1,
     'path' => __DIR__ . '/../tests/unit/Mage/Core/Model/StoreTest.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Only booleans are allowed in an if condition, string|false given.',
+    'count' => 1,
+    'path' => __DIR__ . '/../tests/unit/Mage/Downloadable/Helper/DownloadTest.php',
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Only booleans are allowed in an if condition, string|null given.',

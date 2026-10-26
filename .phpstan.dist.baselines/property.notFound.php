@@ -191,5 +191,30 @@ $ignoreErrors[] = [
     'count' => 1,
     'path' => __DIR__ . '/../lib/Varien/Db/Adapter/Pdo/Mysql.php',
 ];
+$ignoreErrors[] = [
+    'rawMessage' => 'Access to an undefined property Mage_Downloadable_Helper_Download::$dns.',
+    'count' => 5,
+    'path' => __DIR__ . '/../tests/unit/Mage/Downloadable/Helper/DownloadTest.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Access to an undefined property Mage_Downloadable_Helper_Download::$reports.',
+    'count' => 2,
+    'path' => __DIR__ . '/../tests/unit/Mage/Downloadable/Helper/DownloadTest.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Access to an undefined property Mage_Downloadable_Helper_Download::$dns.',
+    'count' => 3,
+    'path' => __DIR__ . '/../tests/unit/Mage/Downloadable/Model/Link/UrlAuditTest.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Access to an undefined property Mage_Downloadable_Helper_Download::$lookups.',
+    'count' => 2,
+    'path' => __DIR__ . '/../tests/unit/Mage/Downloadable/Model/Link/UrlAuditTest.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Access to an undefined property Mage_Downloadable_Model_Link_UrlAudit::$messages.',
+    'count' => 3,
+    'path' => __DIR__ . '/../tests/unit/Mage/Downloadable/Model/Link/UrlAuditTest.php',
+];
 
 return ['parameters' => ['ignoreErrors' => $ignoreErrors]];

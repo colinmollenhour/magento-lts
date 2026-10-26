@@ -662,11 +662,6 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/code/core/Mage/Core/Block/Abstract.php',
 ];
 $ignoreErrors[] = [
-    'rawMessage' => 'Only booleans are allowed in a ternary operator condition, string given.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/code/core/Mage/Core/Block/Messages.php',
-];
-$ignoreErrors[] = [
     'rawMessage' => 'Only booleans are allowed in a ternary operator condition, array|string|true|null given.',
     'count' => 1,
     'path' => __DIR__ . '/../app/code/core/Mage/Core/Controller/Varien/Action.php',
@@ -955,6 +950,11 @@ $ignoreErrors[] = [
     'rawMessage' => 'Only booleans are allowed in a ternary operator condition, Mage_Sales_Model_Quote|null given.',
     'count' => 1,
     'path' => __DIR__ . '/../app/code/core/Mage/Payment/Model/Method/Cc.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Only booleans are allowed in a ternary operator condition, Mage_Sales_Model_Quote given.',
+    'count' => 1,
+    'path' => __DIR__ . '/../app/code/core/Mage/Payment/Model/Method/Free.php',
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Only booleans are allowed in a ternary operator condition, mixed given.',

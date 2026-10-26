@@ -1797,11 +1797,6 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/code/core/Mage/Catalog/Model/Product/Option/Type/Default.php',
 ];
 $ignoreErrors[] = [
-    'rawMessage' => 'Loose comparison via "==" between string and mixed is not allowed.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/code/core/Mage/Catalog/Model/Product/Option/Type/File.php',
-];
-$ignoreErrors[] = [
     'rawMessage' => 'Loose comparison via "==" between mixed and string is not allowed.',
     'count' => 2,
     'path' => __DIR__ . '/../app/code/core/Mage/Catalog/Model/Product/Option/Type/Select.php',
@@ -3795,11 +3790,6 @@ $ignoreErrors[] = [
     'rawMessage' => 'Loose comparison via "==" between int|null and int is not allowed.',
     'count' => 1,
     'path' => __DIR__ . '/../app/code/core/Mage/Eav/Model/Resource/Form/Fieldset/Collection.php',
-];
-$ignoreErrors[] = [
-    'rawMessage' => 'Loose comparison via "==" between int<0, max> and int is not allowed.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/code/core/Mage/GiftMessage/Block/Message/Inline.php',
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Loose comparison via "==" between int<1, max> and int is not allowed.',
@@ -5953,7 +5943,7 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Loose comparison via "==" between mixed and mixed is not allowed.',
-    'count' => 3,
+    'count' => 2,
     'path' => __DIR__ . '/../app/code/core/Mage/Wishlist/controllers/IndexController.php',
 ];
 $ignoreErrors[] = [
@@ -7248,7 +7238,7 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Loose comparison via "==" between mixed and string is not allowed.',
-    'count' => 3,
+    'count' => 2,
     'path' => __DIR__ . '/../lib/Varien/Filter/Template.php',
 ];
 $ignoreErrors[] = [

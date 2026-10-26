@@ -15437,6 +15437,11 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/code/core/Mage/Dataflow/Model/Convert/Action/Abstract.php',
 ];
 $ignoreErrors[] = [
+    'rawMessage' => 'Method Mage_Dataflow_Model_Convert_Adapter_Http_Curl::_getAllowedUrlPrefixes() return type has no value type specified in iterable type array.',
+    'count' => 1,
+    'path' => __DIR__ . '/../app/code/core/Mage/Dataflow/Model/Convert/Adapter/Http/Curl.php',
+];
+$ignoreErrors[] = [
     'rawMessage' => 'Method Mage_Dataflow_Model_Convert_Parser_Csv::getCsvString() has parameter $fields with no value type specified in iterable type array.',
     'count' => 1,
     'path' => __DIR__ . '/../app/code/core/Mage/Dataflow/Model/Convert/Parser/Csv.php',
@@ -15850,6 +15855,31 @@ $ignoreErrors[] = [
     'rawMessage' => 'Method Mage_Downloadable_Helper_Catalog_Product_Configuration::getOptions() return type has no value type specified in iterable type array.',
     'count' => 1,
     'path' => __DIR__ . '/../app/code/core/Mage/Downloadable/Helper/Catalog/Product/Configuration.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Method Mage_Downloadable_Helper_Download::_getAllowedUrlPrefixes() return type has no value type specified in iterable type array.',
+    'count' => 1,
+    'path' => __DIR__ . '/../app/code/core/Mage/Downloadable/Helper/Download.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Method Mage_Downloadable_Helper_Download::_getUrlOrigin() has parameter $urlProp with no value type specified in iterable type array.',
+    'count' => 1,
+    'path' => __DIR__ . '/../app/code/core/Mage/Downloadable/Helper/Download.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Method Mage_Downloadable_Helper_Download::_reportBlockedUrl() has parameter $urlProp with no value type specified in iterable type array.',
+    'count' => 1,
+    'path' => __DIR__ . '/../app/code/core/Mage/Downloadable/Helper/Download.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Method Mage_Downloadable_Helper_Download::_resolveHost() return type has no value type specified in iterable type array.',
+    'count' => 1,
+    'path' => __DIR__ . '/../app/code/core/Mage/Downloadable/Helper/Download.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Method Mage_Downloadable_Helper_Download::_validateUrl() return type has no value type specified in iterable type array.',
+    'count' => 1,
+    'path' => __DIR__ . '/../app/code/core/Mage/Downloadable/Helper/Download.php',
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Method Mage_Downloadable_Helper_Download::getContentType() return type has no value type specified in iterable type array.',
@@ -28505,6 +28535,36 @@ $ignoreErrors[] = [
     'rawMessage' => 'Method OpenMage\\Tests\\Unit\\Mage\\Directory\\Helper\\DataTest::testGetCountriesWithStatesRequired() has parameter $expectedResult with no value type specified in iterable type array.',
     'count' => 1,
     'path' => __DIR__ . '/../tests/unit/Mage/Directory/Helper/DataTest.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Method Mage_Downloadable_Helper_Download@anonymous/tests/unit/Mage/Downloadable/Helper/DownloadTest.php:32::_reportBlockedUrl() has parameter $urlProp with no value type specified in iterable type array.',
+    'count' => 1,
+    'path' => __DIR__ . '/../tests/unit/Mage/Downloadable/Helper/DownloadTest.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Method Mage_Downloadable_Helper_Download@anonymous/tests/unit/Mage/Downloadable/Helper/DownloadTest.php:32::_resolveHost() return type has no value type specified in iterable type array.',
+    'count' => 1,
+    'path' => __DIR__ . '/../tests/unit/Mage/Downloadable/Helper/DownloadTest.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Method Mage_Downloadable_Helper_Download@anonymous/tests/unit/Mage/Downloadable/Helper/DownloadTest.php:32::getAllowedUrlPrefixesWrapper() return type has no value type specified in iterable type array.',
+    'count' => 1,
+    'path' => __DIR__ . '/../tests/unit/Mage/Downloadable/Helper/DownloadTest.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Method Mage_Downloadable_Helper_Download@anonymous/tests/unit/Mage/Downloadable/Helper/DownloadTest.php:32::validateUrlWrapper() return type has no value type specified in iterable type array.',
+    'count' => 1,
+    'path' => __DIR__ . '/../tests/unit/Mage/Downloadable/Helper/DownloadTest.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Method Mage_Downloadable_Helper_Download@anonymous/tests/unit/Mage/Downloadable/Model/Link/UrlAuditTest.php:36::_resolveHost() return type has no value type specified in iterable type array.',
+    'count' => 1,
+    'path' => __DIR__ . '/../tests/unit/Mage/Downloadable/Model/Link/UrlAuditTest.php',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Method Mage_Downloadable_Model_Link_UrlAudit@anonymous/tests/unit/Mage/Downloadable/Model/Link/UrlAuditTest.php:50::notify() has parameter $report with no value type specified in iterable type array.',
+    'count' => 1,
+    'path' => __DIR__ . '/../tests/unit/Mage/Downloadable/Model/Link/UrlAuditTest.php',
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Method OpenMage\\Tests\\Unit\\Mage\\Log\\Model\\CustomerTest::testGetLoginAtTimestamp() has parameter $methods with no value type specified in iterable type array.',
