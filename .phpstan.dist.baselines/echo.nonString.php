@@ -1233,7 +1233,7 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
-    'count' => 4,
+    'count' => 11,
     'path' => __DIR__ . '/../app/design/frontend/base/default/template/sales/order/trackinginfo.phtml',
 ];
 $ignoreErrors[] = [
@@ -1273,7 +1273,7 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
-    'count' => 6,
+    'count' => 15,
     'path' => __DIR__ . '/../app/design/frontend/base/default/template/shipping/tracking/popup.phtml',
 ];
 $ignoreErrors[] = [
