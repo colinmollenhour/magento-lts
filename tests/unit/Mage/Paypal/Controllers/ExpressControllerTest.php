@@ -20,6 +20,7 @@ use Mage_Core_Controller_Response_Http;
 use Mage_Core_Model_Message;
 use Mage_Core_Model_Session_Abstract;
 use Mage_Paypal_ExpressController as Subject;
+use Mage_Paypal_Model_Express_Checkout;
 use OpenMage\Tests\Unit\OpenMageTest;
 use PHPUnit\Framework\MockObject\MockObject;
 
@@ -40,6 +41,10 @@ final class ExpressControllerTest extends OpenMageTest
 
     private const CHECKOUT_HELPER_KEY = '_helper/checkout';
 
+    private const VERIFIED_RETURN_KEY = 'paypal_express_verified_return';
+
+    private const SESSION_TOKEN = 'EC-SESSION';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -50,6 +55,8 @@ final class ExpressControllerTest extends OpenMageTest
         Mage::getSingleton('paypal/session')->getMessages(true);
         Mage::getSingleton('checkout/session')->getMessages(true);
         Mage::getSingleton('paypal/session')->unsExpressCheckoutToken();
+        Mage::getSingleton('checkout/session')->unsPaypalTransactionData();
+        Mage::unregister(self::VERIFIED_RETURN_KEY);
 
         $checkoutHelper = $this->createMock(Mage_Checkout_Helper_Data::class);
         $checkoutHelper->method('getRequiredAgreementIds')->willReturn([]);
@@ -60,6 +67,8 @@ final class ExpressControllerTest extends OpenMageTest
     protected function tearDown(): void
     {
         Mage::unregister(self::CHECKOUT_HELPER_KEY);
+        Mage::unregister(self::VERIFIED_RETURN_KEY);
+        Mage::getSingleton('checkout/session')->unsPaypalTransactionData();
         $_GET = [];
         $_POST = [];
         parent::tearDown();
@@ -95,28 +104,106 @@ final class ExpressControllerTest extends OpenMageTest
     /**
      * @group Controller
      */
-    public function testPlaceOrderForwardedFromReturnSkipsFormKey(): void
+    public function testPlaceOrderForwardedFromCheckedReturnSkipsFormKey(): void
     {
+        Mage::getSingleton('paypal/session')->setExpressCheckoutToken(self::SESSION_TOKEN);
         $request = $this->createRequest('return', 'GET', null);
-        $request->initForward();
-        $request->setActionName('placeOrder');
+        $request->setQuery('token', self::SESSION_TOKEN);
 
+        $checkout = $this->createMock(Mage_Paypal_Model_Express_Checkout::class);
+        $checkout->expects(self::once())->method('returnFromPaypal')->with(self::SESSION_TOKEN);
+        $checkout->method('canSkipOrderReviewStep')->willReturn(true);
+        $subject = $this->getMockBuilder(Subject::class)
+            ->setConstructorArgs([$request, new Mage_Core_Controller_Response_Http()])
+            ->onlyMethods(['_initCheckout'])
+            ->getMock();
+        $subject->method('_initCheckout')->willReturn($checkout);
+
+        $subject->returnAction();
+
+        self::assertSame('placeOrder', $request->getActionName());
+        self::assertFalse($request->isDispatched());
         $this->createSubject($request, true)->placeOrderAction();
     }
 
     /**
      * @group Controller
      */
-    public function testPlaceOrderForwardedFromAnotherControllerRequiresFormKey(): void
+    public function testPlaceOrderForwardedWithoutCheckedReturnRequiresFormKey(): void
     {
         $request = $this->createRequest('return', 'GET', null);
-        $request->setControllerName('other');
         $request->initForward();
-        $request->setControllerName('express');
         $request->setActionName('placeOrder');
 
         $this->createSubject($request, false)->placeOrderAction();
 
+        self::assertSame([self::INVALID_FORM_KEY], $this->getErrors(Mage::getSingleton('paypal/session')));
+    }
+
+    /**
+     * @group Controller
+     */
+    public function testCheckedReturnWaivesTheFormKeyOnce(): void
+    {
+        $request = $this->createRequest('return', 'GET', null);
+        $request->setQuery('retry_authorization', 'true');
+        $request->setQuery('token', self::SESSION_TOKEN);
+        Mage::getSingleton('paypal/session')->setExpressCheckoutToken(self::SESSION_TOKEN);
+        Mage::getSingleton('checkout/session')->setPaypalTransactionData(['transaction_id' => 'O-1']);
+        $this->createSubject($request, false)->returnAction();
+        $forwarded = $this->getMockBuilder(Subject::class)
+            ->setConstructorArgs([$request, new Mage_Core_Controller_Response_Http()])
+            ->onlyMethods(['_initCheckout'])
+            ->getMock();
+        $forwarded->expects(self::once())->method('_initCheckout')->willThrowException(new Error(self::PASSED_GUARD));
+        try {
+            $forwarded->placeOrderAction();
+            self::fail('The forwarded return did not reach the checkout');
+        } catch (Error $error) {
+            self::assertSame(self::PASSED_GUARD, $error->getMessage());
+        }
+
+        $this->createSubject($request, false)->placeOrderAction();
+
+        self::assertSame([self::INVALID_FORM_KEY], $this->getErrors(Mage::getSingleton('paypal/session')));
+    }
+
+    /**
+     * @return Iterator<string, array{(null|string), bool}>
+     */
+    public static function provideRetryAuthorizationRequests(): Iterator
+    {
+        yield 'no request token' => [null, false];
+        yield 'wrong request token' => ['EC-OTHER', false];
+        yield 'matching request token' => [self::SESSION_TOKEN, true];
+    }
+
+    /**
+     * @dataProvider provideRetryAuthorizationRequests
+     * @group Controller
+     */
+    public function testRetryAuthorizationRequiresTheExpressCheckoutToken(?string $requestToken, bool $forwarded): void
+    {
+        Mage::getSingleton('paypal/session')->setExpressCheckoutToken(self::SESSION_TOKEN);
+        Mage::getSingleton('checkout/session')->setPaypalTransactionData(['transaction_id' => 'O-1']);
+        $request = $this->createRequest('return', 'GET', null);
+        $request->setQuery('retry_authorization', 'true');
+        if ($requestToken !== null) {
+            $request->setQuery('token', $requestToken);
+        }
+
+        $subject = $this->createSubject($request, false);
+        $subject->returnAction();
+
+        if ($forwarded) {
+            self::assertSame('placeOrder', $request->getActionName());
+            $this->createSubject($request, true)->placeOrderAction();
+            return;
+        }
+
+        self::assertSame('return', $request->getActionName());
+        self::assertTrue($subject->getResponse()->isRedirect());
+        $this->createSubject($request, false)->placeOrderAction();
         self::assertSame([self::INVALID_FORM_KEY], $this->getErrors(Mage::getSingleton('paypal/session')));
     }
 
