@@ -76,6 +76,26 @@ class Mage_Admin_Model_Resource_Rules extends Mage_Core_Model_Resource_Db_Abstra
             $adapter->rollBack();
             Mage::logException($exception);
         }
+
+        // Reload the ACL of the role's members only now that the rules are written: saving the role asks
+        // for a reload before its rules change, and a session that reloaded then has built the old rules.
+        $this->_reloadRoleUsersAcl((int) $rule->getRoleId());
+    }
+
+    /**
+     * Make every member of the role rebuild its ACL on its next request
+     *
+     * @throws Mage_Core_Exception
+     * @throws Zend_Cache_Exception
+     * @throws Zend_Db_Adapter_Exception
+     */
+    protected function _reloadRoleUsersAcl(int $roleId): void
+    {
+        /** @var Mage_Admin_Model_Roles $role */
+        $role = Mage::getModel('admin/roles')->setId($roleId);
+        /** @var Mage_Admin_Model_Resource_User $userResource */
+        $userResource = Mage::getResourceSingleton('admin/user');
+        $userResource->bumpReloadAclFlag($role->getResource()->getRoleUsers($role));
     }
 
     /**
