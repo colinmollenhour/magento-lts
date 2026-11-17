@@ -113,7 +113,8 @@
             <script type="text/javascript">decorateTable('tracking-table-popup-<?php echo $_id++ ?>');</script>
             <?php if (is_object($track) && is_array($track->getProgressdetail()) && count($track->getProgressdetail()) > 0): ?>
                 <br />
-                <table class="data-table" id="track-history-table-<?php echo $track->getTracking(); ?>">
+                <?php $_historyTableId = 'track-history-table-' . $track->getTracking() ?>
+                <table class="data-table" id="<?php echo $this->escapeHtml($_historyTableId) ?>">
                     <col />
                     <col width="1" />
                     <col width="1" />
@@ -139,7 +140,7 @@
                    <?php endforeach ?>
                    </tbody>
                 </table>
-                <script type="text/javascript">decorateTable('track-history-table-<?php echo $track->getTracking(); ?>');</script>
+                <script type="text/javascript">decorateTable(<?php echo Mage::helper('core')->jsonEncode($_historyTableId) ?>);</script>
             <?php endif ?>
             <div class="divider"></div>
             <?php if($counter !== $rowCount): ?>
