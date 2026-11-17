@@ -22,7 +22,8 @@ use ReflectionMethod;
 
 /**
  * customer.info and customer.list must not hand out the password hash, the password-reset token or the
- * confirmation key, and must not let a filter recover them.
+ * confirmation key, and must not let a filter recover them. customer.create and customer.update treat a
+ * written confirmation as the status the reads return, never as the key.
  */
 final class ApiReadSecretsTest extends OpenMageTest
 {
@@ -103,6 +104,33 @@ final class ApiReadSecretsTest extends OpenMageTest
         yield 'confirmation eq' => [false, 'confirmation', 'abc', 'confirmation'];
         yield 'confirmation notnull plus like' => [false, 'confirmation', ['notnull' => true, 'like' => 'a%'], 'confirmation'];
         yield 'attribute id resolving to confirmation' => [false, '45', ['like' => 'a%'], 'confirmation'];
+    }
+
+    #[DataProvider('provideConfirmationWrites')]
+    public function testPrepareConfirmationForWrite(?string $storedKey, mixed $value, ?string $expected): void
+    {
+        $customer = $this->createPartialMock(Mage_Customer_Model_Customer::class, ['getRandomConfirmationKey']);
+        $customer->method('getRandomConfirmationKey')->willReturn('new-random-key');
+        $customer->setConfirmation($storedKey);
+
+        self::assertSame($expected, $this->invoke(new Subject(), '_prepareConfirmationForWrite', $customer, $value));
+    }
+
+    public static function provideConfirmationWrites(): Generator
+    {
+        $key = 'b7a1c0d2e3f4a5b6c7d8e9f0a1b2c3d4';
+
+        yield 'pending read back (true) keeps the key' => [$key, true, $key];
+        yield 'pending read back over XML-RPC ("1") keeps the key' => [$key, '1', $key];
+        yield 'pending read back as int keeps the key' => [$key, 1, $key];
+        yield 'a key chosen by the caller is not stored' => [$key, 'caller-chosen-key', $key];
+        yield 'pending without a stored key gets a random key' => [null, true, 'new-random-key'];
+        yield 'chosen key without a stored key gets a random key' => [null, 'caller-chosen-key', 'new-random-key'];
+        yield 'confirmed (false) clears the key' => [$key, false, null];
+        yield 'confirmed ("0") clears the key' => [$key, '0', null];
+        yield 'confirmed ("false") clears the key' => [$key, 'false', null];
+        yield 'confirmed (empty) clears the key' => [$key, '', null];
+        yield 'confirmed stays confirmed' => [null, false, null];
     }
 
     private function invoke(object $subject, string $method, mixed ...$args): mixed

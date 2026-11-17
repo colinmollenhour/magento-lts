@@ -19,17 +19,6 @@ class Mage_Customer_Model_Customer_Api extends Mage_Customer_Model_Api_Resource
     ];
 
     /**
-     * Attribute codes that info() and items() never return and items() does not accept as filters
-     *
-     * These hold credentials: the password hash and the password-reset token. They are kept apart from
-     * $_ignoredAttributeCodes because update() uses that list. The confirmation key is not listed here:
-     * it is returned as a boolean instead, see _prepareAttributeValueForRead().
-     *
-     * @var string[]
-     */
-    protected $_ignoredReadAttributeCodes = ['password_hash', 'rp_token', 'rp_token_created_at', 'rp_customer_id'];
-
-    /**
      * Prepare data to insert/update.
      * Creating array for stdClass Object
      *
@@ -59,6 +48,10 @@ class Mage_Customer_Model_Customer_Api extends Mage_Customer_Model_Api_Resource
     {
         $customer = Mage::getModel('customer/customer');
         $customerData = $this->_prepareData($customerData);
+        if (is_array($customerData) && array_key_exists('confirmation', $customerData)) {
+            $customerData['confirmation'] = $this->_prepareConfirmationForWrite($customer, $customerData['confirmation']);
+        }
+
         try {
             $customer
                 ->setData($customerData)
@@ -119,7 +112,7 @@ class Mage_Customer_Model_Customer_Api extends Mage_Customer_Model_Api_Resource
         try {
             foreach ($filters as $field => $value) {
                 if (!$this->_isAllowedFilter($collection->getEntity(), $field, $value)) {
-                    Mage::throwException(sprintf('Filtering by "%s" is not allowed.', $field));
+                    Mage::throwException(Mage::helper('customer')->__('Filtering by "%s" is not allowed.', $field));
                 }
 
                 $collection->addFieldToFilter($field, $value);
@@ -152,8 +145,9 @@ class Mage_Customer_Model_Customer_Api extends Mage_Customer_Model_Api_Resource
     /**
      * Return codes of the attributes info() and items() may return
      *
-     * The read exclusion is applied after the optional filter, so naming an excluded attribute in
-     * the filter cannot re-admit it.
+     * Credentials (see Mage_Customer_Helper_Data::getApiSecretAttributeCodes()) are excluded after the
+     * optional filter, so naming one in the filter cannot re-admit it. They are kept out of
+     * $_ignoredAttributeCodes because update() uses that list.
      *
      * @param  null|array<int|string> $filter
      * @return string[]
@@ -161,18 +155,19 @@ class Mage_Customer_Model_Customer_Api extends Mage_Customer_Model_Api_Resource
      */
     protected function _getReadableAttributeCodes(Mage_Customer_Model_Customer $customer, ?array $filter = null)
     {
+        /** @var Mage_Customer_Helper_Data $helper */
+        $helper = Mage::helper('customer');
         return array_values(array_diff(
             array_keys($this->getAllowedAttributes($customer, $filter)),
-            $this->_ignoredReadAttributeCodes,
+            $helper->getApiSecretAttributeCodes(),
         ));
     }
 
     /**
      * Prepare an attribute value for API output
      *
-     * The confirmation key lets anyone who holds it confirm the account and log in as the customer, so
-     * only whether confirmation is pending is returned. This matches the xsd:boolean type of the
-     * "confirmation" element in the SOAP v2 and WS-I customerCustomerEntity type.
+     * Only whether confirmation is pending is returned for the confirmation key. This matches the
+     * xsd:boolean type of the "confirmation" element in the SOAP v2 and WS-I customerCustomerEntity type.
      *
      * @param  string $attributeCode
      * @param  mixed  $value
@@ -181,20 +176,36 @@ class Mage_Customer_Model_Customer_Api extends Mage_Customer_Model_Api_Resource
     protected function _prepareAttributeValueForRead($attributeCode, $value)
     {
         if ($attributeCode === 'confirmation') {
-            return (bool) $value;
+            /** @var Mage_Customer_Helper_Data $helper */
+            $helper = Mage::helper('customer');
+            return $helper->prepareApiConfirmationForRead($value);
         }
 
         return $value;
     }
 
     /**
+     * Prepare a confirmation value written by create() or update()
+     *
+     * Reads return a boolean, so a caller that writes back what it read must not store that boolean as
+     * the key, and a caller can never choose the key.
+     *
+     * @param  mixed       $value
+     * @return null|string
+     */
+    protected function _prepareConfirmationForWrite(Mage_Customer_Model_Customer $customer, $value)
+    {
+        /** @var Mage_Customer_Helper_Data $helper */
+        $helper = Mage::helper('customer');
+        return $helper->prepareApiConfirmationForWrite($customer, $value);
+    }
+
+    /**
      * Check whether a filter may be applied to the customer collection
      *
-     * Filtering on a secret attribute would let the caller recover its value one condition at a time, so
-     * excluded attributes cannot be filtered on and "confirmation" only accepts a null/notnull condition
-     * (to list customers whose confirmation is pending or done). The field is resolved through the entity
-     * like the collection filter does, so attribute ids and codes that only match in the database
-     * collation are caught too.
+     * See Mage_Customer_Helper_Data::isApiFilterAllowed(). The field is resolved through the entity like
+     * the collection filter does, so attribute ids and codes that only match in the database collation
+     * are caught too.
      *
      * @param  int|string          $field
      * @param  mixed               $condition
@@ -209,17 +220,9 @@ class Mage_Customer_Model_Customer_Api extends Mage_Customer_Model_Api_Resource
             $codes[] = strtolower((string) $attribute->getAttributeCode());
         }
 
-        if (array_intersect($codes, $this->_ignoredReadAttributeCodes) !== []) {
-            return false;
-        }
-
-        if (in_array('confirmation', $codes, true)) {
-            return is_array($condition)
-                && count($condition) === 1
-                && in_array(key($condition), ['null', 'notnull'], true);
-        }
-
-        return true;
+        /** @var Mage_Customer_Helper_Data $helper */
+        $helper = Mage::helper('customer');
+        return $helper->isApiFilterAllowed($codes, $condition);
     }
 
     /**
@@ -243,7 +246,12 @@ class Mage_Customer_Model_Customer_Api extends Mage_Customer_Model_Api_Resource
 
         foreach (array_keys($this->getAllowedAttributes($customer)) as $attributeCode) {
             if (isset($customerData[$attributeCode])) {
-                $customer->setData($attributeCode, $customerData[$attributeCode]);
+                $value = $customerData[$attributeCode];
+                if ($attributeCode === 'confirmation') {
+                    $value = $this->_prepareConfirmationForWrite($customer, $value);
+                }
+
+                $customer->setData($attributeCode, $value);
             }
         }
 

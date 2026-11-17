@@ -47,12 +47,12 @@ final class ApiReadSecretsTest extends OpenMageTest
         self::assertArrayNotHasKey('password_hash', $this->getAttributes($quote, 'quote', ['password_hash']));
     }
 
-    public function testOtherEntityTypesAreUnchanged(): void
+    public function testSecretsAreRemovedWhateverTheEntityType(): void
     {
-        $address = new Varien_Object(['entity_id' => 3, 'password_hash' => 'x', 'city' => 'Austin']);
+        $address = new Varien_Object(['entity_id' => 3, 'password_hash' => 'x', 'cc_number_enc' => 'y', 'city' => 'Austin']);
 
         self::assertSame(
-            ['password_hash' => 'x', 'city' => 'Austin', 'address_id' => 3],
+            ['city' => 'Austin', 'address_id' => 3],
             $this->getAttributes($address, 'quote_address'),
         );
     }

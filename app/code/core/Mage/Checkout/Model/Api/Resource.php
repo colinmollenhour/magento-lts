@@ -26,13 +26,10 @@ class Mage_Checkout_Model_Api_Resource extends Mage_Api_Model_Resource_Abstract
     /**
      * Default ignored attribute codes per entity type
      *
-     * The quote's password_hash holds the encrypted password of a customer who registers during checkout.
-     *
      * @var array
      */
     protected $_ignoredAttributeCodes = [
         'global'    =>  ['entity_id', 'attribute_set_id', 'entity_type_id'],
-        'quote'     =>  ['password_hash'],
     ];
 
     /**
@@ -184,11 +181,7 @@ class Mage_Checkout_Model_Api_Resource extends Mage_Api_Model_Resource_Abstract
             }
         }
 
-        if ($type === 'quote_payment') {
-            $result = $this->_removePaymentSecrets($result);
-        }
-
-        return $result;
+        return $this->_removeSecrets($result);
     }
 
     /**

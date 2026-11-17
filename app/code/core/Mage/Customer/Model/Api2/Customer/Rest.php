@@ -15,13 +15,6 @@
 abstract class Mage_Customer_Model_Api2_Customer_Rest extends Mage_Customer_Model_Api2_Customer
 {
     /**
-     * Attribute codes never returned, whatever attributes the API role allows
-     *
-     * @var string[]
-     */
-    protected $_secretAttributeCodes = ['password_hash', 'rp_token', 'rp_token_created_at', 'rp_customer_id'];
-
-    /**
      * Create customer
      *
      * @return string
@@ -88,27 +81,31 @@ abstract class Mage_Customer_Model_Api2_Customer_Rest extends Mage_Customer_Mode
     }
 
     /**
-     * Reject collection filters on the confirmation key other than null/notnull
+     * Reject collection filters that could recover a credential or the confirmation key
      *
-     * Any other condition (eq, like, ...) would let the caller recover the key one request at a time.
+     * See Mage_Customer_Helper_Data::isApiFilterAllowed(): credentials cannot be filtered on, whatever
+     * attributes the API role allows, and the confirmation key only accepts null/notnull.
      *
      * @throws Exception
      * @throws Mage_Api2_Exception
      */
-    protected function _validateConfirmationFilter(): void
+    protected function _validateSecretFilters(): void
     {
         $filter = $this->getRequest()->getFilter();
         if (!is_array($filter)) {
             return;
         }
 
+        /** @var Mage_Customer_Helper_Data $helper */
+        $helper = Mage::helper('customer');
         foreach ($filter as $filterEntry) {
-            if (!is_array($filterEntry) || ($filterEntry['attribute'] ?? null) !== 'confirmation') {
+            if (!is_array($filterEntry) || !isset($filterEntry['attribute']) || !is_scalar($filterEntry['attribute'])) {
                 continue;
             }
 
+            $attributeCode = strtolower(trim((string) $filterEntry['attribute']));
             unset($filterEntry['attribute']);
-            if (count($filterEntry) !== 1 || !in_array(key($filterEntry), ['null', 'notnull'], true)) {
+            if (!$helper->isApiFilterAllowed([$attributeCode], $filterEntry)) {
                 $this->_critical(self::RESOURCE_COLLECTION_FILTERING_ERROR);
             }
         }
@@ -117,20 +114,22 @@ abstract class Mage_Customer_Model_Api2_Customer_Rest extends Mage_Customer_Mode
     /**
      * Remove credentials from customer data before it is returned
      *
-     * The confirmation key lets anyone who holds it confirm the account and log in as the customer, so
-     * only whether confirmation is pending is returned.
+     * Credentials are removed whatever attributes the API role allows, and only whether confirmation is
+     * pending is returned for the confirmation key.
      *
      * @param  array<string, mixed> $data
      * @return array<string, mixed>
      */
     protected function _prepareCustomerDataForResponse(array $data)
     {
-        foreach ($this->_secretAttributeCodes as $attributeCode) {
+        /** @var Mage_Customer_Helper_Data $helper */
+        $helper = Mage::helper('customer');
+        foreach ($helper->getApiSecretAttributeCodes() as $attributeCode) {
             unset($data[$attributeCode]);
         }
 
         if (array_key_exists('confirmation', $data)) {
-            $data['confirmation'] = (bool) $data['confirmation'];
+            $data['confirmation'] = $helper->prepareApiConfirmationForRead($data['confirmation']);
         }
 
         return $data;
@@ -202,7 +201,7 @@ abstract class Mage_Customer_Model_Api2_Customer_Rest extends Mage_Customer_Mode
             $this->getAvailableAttributes($this->getUserType(), Mage_Api2_Model_Resource::OPERATION_ATTRIBUTE_READ),
         ));
 
-        $this->_validateConfirmationFilter();
+        $this->_validateSecretFilters();
         $this->_applyCollectionModifiers($collection);
         return $collection;
     }

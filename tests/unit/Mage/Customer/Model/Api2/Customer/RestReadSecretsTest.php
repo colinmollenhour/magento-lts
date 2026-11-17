@@ -21,7 +21,7 @@ use ReflectionMethod;
 
 /**
  * REST customer reads must not return credentials or the raw confirmation key, whatever attributes the
- * API role allows, and must not let a collection filter recover the confirmation key.
+ * API role allows, and must not let a collection filter recover them.
  */
 final class RestReadSecretsTest extends OpenMageTest
 {
@@ -65,10 +65,10 @@ final class RestReadSecretsTest extends OpenMageTest
      * @param list<array<string, mixed>> $filter
      */
     #[DataProvider('provideRejectedFilters')]
-    public function testConfirmationFilterRejectsValueConditions(array $filter): void
+    public function testFilterRejectsSecretsAndConfirmationValueConditions(array $filter): void
     {
         $this->expectException(Mage_Api2_Exception::class);
-        $this->validateConfirmationFilter($filter);
+        $this->validateSecretFilters($filter);
     }
 
     public static function provideRejectedFilters(): Generator
@@ -80,16 +80,20 @@ final class RestReadSecretsTest extends OpenMageTest
             ['attribute' => 'email', 'like' => '%@example.com'],
             ['attribute' => 'confirmation', 'in' => ['abc']],
         ]];
+        yield 'password_hash like' => [[['attribute' => 'password_hash', 'like' => 'a%']]];
+        yield 'rp_token eq' => [[['attribute' => 'rp_token', 'eq' => 'abc']]];
+        yield 'rp_token notnull' => [[['attribute' => 'rp_token', 'notnull' => 1]]];
+        yield 'rp_customer_id case and padding variant' => [[['attribute' => ' RP_Customer_Id ', 'like' => 'a%']]];
     }
 
     /**
      * @param null|list<array<string, mixed>> $filter
      */
     #[DataProvider('provideAllowedFilters')]
-    public function testConfirmationFilterAllowsOtherFilters(?array $filter): void
+    public function testFilterAllowsOtherFilters(?array $filter): void
     {
         $this->expectNotToPerformAssertions();
-        $this->validateConfirmationFilter($filter);
+        $this->validateSecretFilters($filter);
     }
 
     public static function provideAllowedFilters(): Generator
@@ -103,7 +107,7 @@ final class RestReadSecretsTest extends OpenMageTest
     /**
      * @param null|list<array<string, mixed>> $filter
      */
-    private function validateConfirmationFilter(?array $filter): void
+    private function validateSecretFilters(?array $filter): void
     {
         $request = $this->createMock(Mage_Api2_Model_Request::class);
         $request->method('getFilter')->willReturn($filter);
@@ -111,6 +115,6 @@ final class RestReadSecretsTest extends OpenMageTest
         $subject = new Subject();
         $subject->setRequest($request);
 
-        (new ReflectionMethod($subject, '_validateConfirmationFilter'))->invoke($subject);
+        (new ReflectionMethod($subject, '_validateSecretFilters'))->invoke($subject);
     }
 }

@@ -74,12 +74,12 @@ final class ApiReadSecretsTest extends OpenMageTest
         );
     }
 
-    public function testOtherEntityTypesAreUnchanged(): void
+    public function testSecretsAreRemovedWhateverTheEntityType(): void
     {
         $order = new Varien_Object(['entity_id' => 2, 'increment_id' => '100000002', 'cc_number_enc' => 'x']);
 
         self::assertSame(
-            ['increment_id' => '100000002', 'cc_number_enc' => 'x', 'order_id' => 2],
+            ['increment_id' => '100000002', 'order_id' => 2],
             $this->getAttributes($order, 'order'),
         );
     }

@@ -22,15 +22,19 @@ class Mage_Api_Model_Resource_Abstract
     protected $_resourceConfig = null;
 
     /**
-     * Payment fields API reads never return
+     * Fields API reads never return, whatever the entity type
      *
-     * Card numbers and security codes (plain or encrypted with the store key) and raw gateway debug
-     * payloads, which can contain them. Card metadata such as cc_type, cc_last4, cc_owner and cc_exp_*
-     * and gateway references such as cc_trans_id and last_trans_id are still returned.
+     * Card numbers and security codes (plain or encrypted with the store key), raw gateway debug payloads,
+     * which can contain them, and the encrypted password a quote keeps for a customer who registers during
+     * checkout. Card metadata such as cc_type, cc_last4, cc_owner and cc_exp_* and gateway references such
+     * as cc_trans_id and last_trans_id are still returned.
+     *
+     * This list applies to reads only. $_ignoredAttributeCodes also governs writes, and subclasses replace
+     * its entries, so it is not used for secrets.
      *
      * @var string[]
      */
-    protected $_paymentSecretFields = [
+    protected $_secretFields = [
         'cc_number',
         'cc_number_enc',
         'cc_cid',
@@ -38,6 +42,7 @@ class Mage_Api_Model_Resource_Abstract
         'cc_debug_request_body',
         'cc_debug_response_body',
         'cc_debug_response_serialized',
+        'password_hash',
     ];
 
     /**
@@ -51,14 +56,14 @@ class Mage_Api_Model_Resource_Abstract
     protected $_paymentSecretInformationKeys = ['secure_silent_post_hash', 'secure_token', 'secure_token_id'];
 
     /**
-     * Remove stored payment secrets from payment data returned by the API
+     * Remove stored secrets from entity data returned by the API
      *
      * @param  array<string, mixed> $data
      * @return array<string, mixed>
      */
-    protected function _removePaymentSecrets(array $data)
+    protected function _removeSecrets(array $data)
     {
-        foreach ($this->_paymentSecretFields as $field) {
+        foreach ($this->_secretFields as $field) {
             unset($data[$field]);
         }
 

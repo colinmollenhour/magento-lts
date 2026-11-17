@@ -84,11 +84,7 @@ class Mage_Sales_Model_Api_Resource extends Mage_Api_Model_Resource_Abstract
             }
         }
 
-        if ($type === 'order_payment') {
-            $result = $this->_removePaymentSecrets($result);
-        }
-
-        return $result;
+        return $this->_removeSecrets($result);
     }
 
     /**
