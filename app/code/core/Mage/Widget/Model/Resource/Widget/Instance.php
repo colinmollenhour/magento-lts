@@ -255,6 +255,84 @@ class Mage_Widget_Model_Resource_Widget_Instance extends Mage_Core_Model_Resourc
     }
 
     /**
+     * Delete the layout updates of widget instances that the widget generator would not produce
+     *
+     * A layout update is removed when its widget instance has a type that no installed module
+     * declares in a widget.xml, or when its XML does not have the exact shape that
+     * Mage_Widget_Model_Widget_Instance::generateLayoutUpdateXml() produces for the instance's type.
+     * The widget instance and its page rows are kept: saving the instance again (once its type is
+     * declared) regenerates its layout updates. Running this again removes nothing more.
+     *
+     * @param  int                                                                                       $batchSize number of widget instances read per query
+     * @return list<array{instance_id: int, type: string, reason: string, layout_update_ids: list<int>}> what was removed, per widget instance
+     */
+    public function deleteUnexpectedLayoutUpdates(int $batchSize = 200): array
+    {
+        $adapter   = $this->_getWriteAdapter();
+        $batchSize = max(1, $batchSize);
+        $removed   = [];
+        $lastId    = 0;
+
+        /** @var Mage_Widget_Model_Widget_Instance $checker */
+        $checker = Mage::getModel('widget/widget_instance');
+
+        do {
+            $instances = $adapter->fetchPairs(
+                $adapter->select()
+                    ->from($this->getMainTable(), ['instance_id', 'instance_type'])
+                    ->where('instance_id > ?', $lastId)
+                    ->order('instance_id ' . Varien_Db_Select::SQL_ASC)
+                    ->limit($batchSize),
+            );
+            if ($instances === []) {
+                break;
+            }
+
+            $lastId = (int) max(array_keys($instances));
+
+            $layoutRows = $adapter->fetchAll(
+                $adapter->select()
+                    ->from(['page' => $this->getTable('widget/widget_instance_page')], ['instance_id'])
+                    ->join(
+                        ['page_layout' => $this->getTable('widget/widget_instance_page_layout')],
+                        'page_layout.page_id = page.page_id',
+                        [],
+                    )
+                    ->join(
+                        ['layout_update' => $this->getTable('core/layout_update')],
+                        'layout_update.layout_update_id = page_layout.layout_update_id',
+                        ['layout_update_id', 'xml'],
+                    )
+                    ->where('page.instance_id IN (?)', array_map(intval(...), array_keys($instances))),
+            );
+
+            $toDelete = [];
+            foreach ($layoutRows ?? [] as $row) {
+                $instanceId = (int) $row['instance_id'];
+                $type = (string) $instances[$instanceId];
+                $checker->setType($type);
+                if ($checker->isGeneratedLayoutUpdateXml((string) $row['xml'])) {
+                    continue;
+                }
+
+                $removed[$instanceId] ??= [
+                    'instance_id'       => $instanceId,
+                    'type'              => $type,
+                    'reason'            => $checker->isTypeDeclared() ? 'unexpected layout update XML' : 'undeclared widget type',
+                    'layout_update_ids' => [],
+                ];
+                $removed[$instanceId]['layout_update_ids'][] = (int) $row['layout_update_id'];
+                $toDelete[] = (int) $row['layout_update_id'];
+            }
+
+            // core_layout_link and widget_instance_page_layout rows go with them (ON DELETE CASCADE)
+            $this->_deleteLayoutUpdates($toDelete);
+        } while (count($instances) === $batchSize);
+
+        return array_values($removed);
+    }
+
+    /**
      * Get store ids to which specified item is assigned
      *
      * @param  int   $id

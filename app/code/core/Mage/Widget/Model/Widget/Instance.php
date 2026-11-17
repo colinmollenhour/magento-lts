@@ -660,6 +660,134 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
     }
 
     /**
+     * Check that a stored layout update has exactly the shape generateLayoutUpdateXml() produces
+     *
+     * That is one <reference> holding one <block> of this instance's (declared) type, whose only
+     * children are <action method="setData"> elements with a <name> and a <value>. Layout updates
+     * of any other shape were not produced by the widget generator for this type, for example
+     * because a type with markup in it was saved before types were checked.
+     *
+     * @param string $xml layout update XML as stored in core_layout_update.xml
+     */
+    public function isGeneratedLayoutUpdateXml($xml): bool
+    {
+        if (!is_string($xml)) {
+            return false;
+        }
+
+        if (trim($xml) === '') {
+            // Generated when the instance was incomplete or its template unreadable; it adds nothing
+            return true;
+        }
+
+        if (!$this->isTypeDeclared()) {
+            return false;
+        }
+
+        $document = new DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        $loaded = $document->loadXML('<root>' . $xml . '</root>', LIBXML_NONET);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+        if (!$loaded || !$document->documentElement instanceof DOMElement) {
+            return false;
+        }
+
+        $references = $this->_getChildElements($document->documentElement);
+        if ($references === null || count($references) !== 1
+            || !$this->_isPlainElement($references[0], 'reference', ['name'])
+        ) {
+            return false;
+        }
+
+        $blocks = $this->_getChildElements($references[0]);
+        if ($blocks === null || count($blocks) !== 1
+            || !$this->_isPlainElement($blocks[0], 'block', ['type', 'name', 'template'])
+            || $blocks[0]->getAttribute('type') !== $this->getType()
+        ) {
+            return false;
+        }
+
+        $actions = $this->_getChildElements($blocks[0]);
+        if ($actions === null) {
+            return false;
+        }
+
+        foreach ($actions as $action) {
+            if (!$this->_isPlainElement($action, 'action', ['method'])
+                || $action->getAttribute('method') !== 'setData'
+            ) {
+                return false;
+            }
+
+            $arguments = $this->_getChildElements($action);
+            if ($arguments === null || count($arguments) !== 2
+                || !$this->_isPlainElement($arguments[0], 'name', [])
+                || !$this->_isPlainElement($arguments[1], 'value', [])
+                || $this->_getChildElements($arguments[0]) !== []
+                || $this->_getChildElements($arguments[1]) !== []
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Child elements of a node, or null if it has children other than elements, text and CDATA
+     *
+     * Text is only allowed where it cannot hold markup: whitespace between elements, or the text
+     * content of an element without element children (checked by the caller).
+     *
+     * @return null|list<DOMElement>
+     */
+    protected function _getChildElements(DOMElement $parent): ?array
+    {
+        $elements = [];
+        $hasText = false;
+        foreach ($parent->childNodes as $child) {
+            if ($child instanceof DOMElement) {
+                $elements[] = $child;
+            } elseif ($child instanceof DOMText) {
+                // DOMCdataSection extends DOMText
+                $hasText = $hasText || trim($child->data) !== '';
+            } else {
+                return null;
+            }
+        }
+
+        if ($hasText && $elements !== []) {
+            return null;
+        }
+
+        return $elements;
+    }
+
+    /**
+     * Check an element's name, that it has no namespace, and that it only has allowed attributes
+     *
+     * @param string[] $allowedAttributes
+     */
+    protected function _isPlainElement(DOMElement $element, string $name, array $allowedAttributes): bool
+    {
+        if ($element->namespaceURI !== null || $element->nodeName !== $name) {
+            return false;
+        }
+
+        foreach ($element->attributes ?? [] as $attribute) {
+            if (!$attribute instanceof DOMAttr
+                || $attribute->namespaceURI !== null
+                || !in_array($attribute->nodeName, $allowedAttributes, true)
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Escape a value for use in layout update XML text or a double- or single-quoted attribute
      *
      * @param  mixed  $value

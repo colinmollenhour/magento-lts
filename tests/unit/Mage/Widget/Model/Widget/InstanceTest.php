@@ -138,6 +138,28 @@ final class InstanceTest extends OpenMageTest
         $subject->generateLayoutUpdateXml('content"');
     }
 
+    /**
+     * @dataProvider provideStoredLayoutUpdateXmlData
+     * @group Model
+     */
+    public function testIsGeneratedLayoutUpdateXml(string $type, string $xml, bool $expected): void
+    {
+        self::assertSame($expected, $this->createSubject($type)->isGeneratedLayoutUpdateXml($xml));
+    }
+
+    /**
+     * What generateLayoutUpdateXml() produces is always recognised, so the upgrade cleanup keeps it.
+     *
+     * @group Model
+     */
+    public function testGeneratedLayoutUpdateXmlIsRecognised(): void
+    {
+        $subject = $this->createSubject(self::DECLARED_TYPE);
+        $subject->setWidgetParameters(['anchor_text' => 'Say "hi" & <b>bye</b>', 'title&x' => 'value', 'page_id' => ['1', '2']]);
+
+        self::assertTrue($subject->isGeneratedLayoutUpdateXml($subject->generateLayoutUpdateXml('content')));
+    }
+
     private function createSubject(string $type): Subject
     {
         /** @var Subject $subject */
