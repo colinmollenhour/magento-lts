@@ -40,6 +40,14 @@ class Mage_Dataflow_Model_Profile extends Mage_Core_Model_Abstract
     public const DEFAULT_EXPORT_FILENAME = 'export_';
 
     /**
+     * Entity types the profile wizard builds profiles for, with the adapter it declares for each
+     */
+    public const GUI_ADAPTERS = [
+        'product' => 'catalog/convert_adapter_product',
+        'customer' => 'customer/convert_adapter_customer',
+    ];
+
+    /**
      * Product table permanent attributes
      *
      * @var array
@@ -319,7 +327,7 @@ class Mage_Dataflow_Model_Profile extends Mage_Core_Model_Abstract
         $newLine = "\r\n";
         $import = $this->getDirection() === 'import';
         $data = $this->getGuiData();
-        if (!in_array($this->getEntityType(), ['product', 'customer'], true)) {
+        if (!is_string($this->getEntityType()) || !isset(self::GUI_ADAPTERS[$this->getEntityType()])) {
             Mage::throwException(Mage::helper('dataflow')->__('Invalid entity type.'));
         }
 
@@ -461,10 +469,7 @@ class Mage_Dataflow_Model_Profile extends Mage_Core_Model_Abstract
             $parseDataXml .= '</action>' . $newLine . $newLine;
         }
 
-        $adapters = [
-            'product' => 'catalog/convert_adapter_product',
-            'customer' => 'customer/convert_adapter_customer',
-        ];
+        $adapters = self::GUI_ADAPTERS;
 
         if ($import) {
             $entityXml = '<action type="' . $adapters[$this->getEntityType()] . '" method="save">' . $newLine;

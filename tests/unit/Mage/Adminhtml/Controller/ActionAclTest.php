@@ -24,6 +24,7 @@ use Mage_Adminhtml_TagController;
 use Mage_Adminhtml_Tax_ClassController;
 use Mage_Core_Controller_Request_Http;
 use Mage_Core_Controller_Response_Http;
+use Mage_Dataflow_Model_Batch;
 use OpenMage\Tests\Unit\OpenMageTest;
 use OpenMage\Tests\Unit\Traits\DataProvider\Mage\Adminhtml\Controller\ActionAclTrait;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -110,6 +111,24 @@ final class ActionAclTest extends OpenMageTest
     }
 
     /**
+     * The create controller shares the session quote with the edit controller, so it gates an edit in progress on Edit.
+     *
+     * @dataProvider provideOrderCreateDuringEditAclData
+     * @param array<string, mixed>  $sessionData
+     * @param array<string, string> $params
+     * @param string[]              $granted
+     * @group Controller
+     */
+    public function testOrderCreateAclDuringEdit(string $action, array $sessionData, array $params, array $granted, bool $expected): void
+    {
+        $this->loginWithRole($granted);
+        $controller = $this->createController(Mage_Adminhtml_Sales_Order_CreateController::class, $action, $params, ['_getSession']);
+        $controller->method('_getSession')->willReturn(new Varien_Object($sessionData));
+
+        self::assertSame($expected, $this->isAllowed($controller));
+    }
+
+    /**
      * The Dataflow Profiles (GUI) permission reaches only wizard-built profiles and their batches.
      *
      * @dataProvider provideDataflowGuiAclData
@@ -125,11 +144,16 @@ final class ActionAclTest extends OpenMageTest
             Mage_Adminhtml_System_Convert_GuiController::class,
             $action,
             $params,
-            ['_isGuiProfile', '_getBatchProfileId'],
+            ['_getGuiEntityType', '_loadBatch'],
         );
-        // Profile 1 was built with the wizard, profile 2 is an Advanced Profile; batch N ran profile N
-        $controller->method('_isGuiProfile')->willReturnCallback(static fn(int $profileId): bool => $profileId !== 2);
-        $controller->method('_getBatchProfileId')->willReturnCallback(static fn(int $batchId): int => $batchId);
+        // Profile 1 was built with the wizard, profile 2 is an Advanced Profile, profile 3 was deleted
+        $controller->method('_getGuiEntityType')->willReturnCallback(static fn(int $profileId): ?string => $profileId === 1 ? 'product' : null);
+        // Batch N ran profile N with the wizard's product adapter, batch 4 ran profile 1 with another adapter
+        $controller->method('_loadBatch')->willReturnCallback(static fn(int $batchId): Mage_Dataflow_Model_Batch => new Mage_Dataflow_Model_Batch([
+            'batch_id' => $batchId,
+            'profile_id' => $batchId === 4 ? 1 : $batchId,
+            'adapter' => $batchId === 4 ? 'catalog/product' : 'catalog/convert_adapter_product',
+        ]));
 
         $previousPost = $_POST;
         $controller->getRequest()->setPost($post);

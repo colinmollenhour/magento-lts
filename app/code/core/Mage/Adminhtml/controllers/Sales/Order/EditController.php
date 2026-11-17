@@ -97,33 +97,4 @@ class Mage_Adminhtml_Sales_Order_EditController extends Mage_Adminhtml_Sales_Ord
 
         return parent::_isAllowed();
     }
-
-    /**
-     * Whether the session quote holds an order edit (not a new order or a reorder)
-     */
-    protected function _isOrderEditInProgress(): bool
-    {
-        $session = $this->_getSession();
-        return (int) $session->getOrderId() !== 0 && (int) $session->getReordered() === 0;
-    }
-
-    /**
-     * Whether the request keeps the customer and store of the order being edited
-     *
-     * The edit form posts the customer and store the edit was started with. A request naming
-     * another one would move the edited order to that customer or store.
-     */
-    protected function _isRequestForEditedOrder(): bool
-    {
-        $session = $this->_getSession();
-        $request = $this->getRequest();
-        foreach (['customer_id' => (int) $session->getCustomerId(), 'store_id' => (int) $session->getStoreId()] as $param => $current) {
-            $requested = $request->getParam($param);
-            if ($requested !== null && $requested !== '' && (int) $requested !== $current) {
-                return false;
-            }
-        }
-
-        return true;
-    }
 }
