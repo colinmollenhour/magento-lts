@@ -127,6 +127,23 @@ class Mage_Adminhtml_Permissions_UserController extends Mage_Adminhtml_Controlle
             unset($data['current_password']);
             $result = $this->_validateCurrentPassword($currentPassword);
 
+            // An administrator cannot change the status or the role of their own account: the form does not
+            // offer the status, and a session whose access was revoked must not be able to restore it.
+            $sessionUser = Mage::getSingleton('admin/session')->getUser();
+            if ($sessionUser instanceof Mage_Admin_Model_User
+                && $model->getId() > 0
+                && (int) $sessionUser->getId() === (int) $model->getId()
+            ) {
+                unset($data['is_active']);
+                $postedRoles = $this->getRequest()->getParam('roles', false);
+                if (!is_array($result)
+                    && is_array($postedRoles) && $postedRoles !== []
+                    && array_map(intval(...), array_slice($postedRoles, 0, 1)) !== array_map(intval(...), $model->getRoles())
+                ) {
+                    $result = [$this->__('You cannot change the role of your own account.')];
+                }
+            }
+
             $model->setData($data);
 
             /*
