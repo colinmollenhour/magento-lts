@@ -18,7 +18,7 @@ use Varien_Object;
 
 /**
  * cart.info must not return the quote's password_hash, which holds the encrypted password of a customer
- * who registers during checkout.
+ * who registers during checkout, nor stored card data and payment gateway secrets.
  */
 final class ApiReadSecretsTest extends OpenMageTest
 {
@@ -54,6 +54,55 @@ final class ApiReadSecretsTest extends OpenMageTest
         self::assertSame(
             ['password_hash' => 'x', 'city' => 'Austin', 'address_id' => 3],
             $this->getAttributes($address, 'quote_address'),
+        );
+    }
+
+    public function testQuotePaymentExcludesCardSecrets(): void
+    {
+        $payment = new Varien_Object([
+            'entity_id' => 9,
+            'method' => 'ccsave',
+            'cc_type' => 'VI',
+            'cc_last4' => '1111',
+            'cc_owner' => 'John Doe',
+            'cc_exp_month' => 12,
+            'cc_exp_year' => 2030,
+            'cc_ss_issue' => '01',
+            'cc_number_enc' => 'encrypted-pan',
+            'cc_cid_enc' => 'encrypted-cvv',
+            'cc_number' => '4111111111111111',
+            'cc_cid' => '123',
+            'additional_information' => [
+                'secure_silent_post_hash' => 'hash',
+                'secure_token' => 'token',
+                'secure_token_id' => 'token-id',
+                'paypal_avs_code' => 'Y',
+            ],
+        ]);
+
+        self::assertSame(
+            [
+                'method' => 'ccsave',
+                'cc_type' => 'VI',
+                'cc_last4' => '1111',
+                'cc_owner' => 'John Doe',
+                'cc_exp_month' => 12,
+                'cc_exp_year' => 2030,
+                'cc_ss_issue' => '01',
+                'additional_information' => ['paypal_avs_code' => 'Y'],
+                'payment_id' => 9,
+            ],
+            $this->getAttributes($payment, 'quote_payment'),
+        );
+    }
+
+    public function testExplicitAttributeFilterCannotReadmitCardSecrets(): void
+    {
+        $payment = new Varien_Object(['entity_id' => 9, 'cc_number_enc' => 'encrypted-pan', 'cc_cid_enc' => 'encrypted-cvv']);
+
+        self::assertSame(
+            ['payment_id' => 9],
+            $this->getAttributes($payment, 'quote_payment', ['cc_number_enc', 'cc_cid_enc']),
         );
     }
 

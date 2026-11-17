@@ -184,6 +184,10 @@ class Mage_Checkout_Model_Api_Resource extends Mage_Api_Model_Resource_Abstract
             }
         }
 
+        if ($type === 'quote_payment') {
+            $result = $this->_removePaymentSecrets($result);
+        }
+
         return $result;
     }
 
