@@ -161,7 +161,7 @@ class Mage_Admin_Model_Session extends Mage_Core_Model_Session_Abstract
                 $this->setIsFirstPageAfterLogin(true);
                 $this->setUser($user);
                 $this->setAcl(Mage::getResourceModel('admin/acl')->loadAcl());
-                $this->setAclVersion((int) $user->getReloadAclFlag());
+                $this->setAclVersion((int) $user->getAclVersion());
                 if ($backendLocale = $user->getBackendLocale()) {
                     Mage::getSingleton('adminhtml/session')->setLocale($backendLocale);
                 }
@@ -193,10 +193,10 @@ class Mage_Admin_Model_Session extends Mage_Core_Model_Session_Abstract
     /**
      * Refresh ACL resources stored in session
      *
-     * The user's `reload_acl_flag` holds an ACL version that changes whenever the user's permissions may
-     * have changed (see Mage_Admin_Model_Resource_User::bumpReloadAclFlag()). The session rebuilds its ACL
-     * when the version differs from the one it was built with. The version is never cleared, so every
-     * session of the user notices the change, not only the first one.
+     * The user's `acl_version` changes whenever the user's permissions may have changed (see
+     * Mage_Admin_Model_Resource_User::bumpAclVersion()). The session rebuilds its ACL when the version
+     * differs from the one it was built with, so every session of the user notices the change, not only
+     * the first one.
      *
      * @param  Mage_Admin_Model_User $user
      * @return $this
@@ -209,16 +209,16 @@ class Mage_Admin_Model_Session extends Mage_Core_Model_Session_Abstract
             return $this;
         }
 
-        $version = (int) $user->getReloadAclFlag();
-        if ($version === Mage_Admin_Model_Resource_User::ACL_VERSION_LEGACY_RELOAD && $user->getId()) {
-            // Code that predates the ACL version writes 1 to ask for a reload. Turn it into a new version,
-            // so the request is not left in place where a later write of 1 would not change the value.
+        if ((int) $user->getReloadAclFlag() !== 0 && $user->getId()) {
+            // Code that predates the ACL version asks for a reload with reload_acl_flag. Another session
+            // of the user may take the request first, so read the version it moved to either way.
             $resource = $user->getResource();
-            $resource->bumpReloadAclFlag([(int) $user->getId()]);
-            $version = $resource->getReloadAclFlag($user);
-            $user->setReloadAclFlag($version)->setOrigData('reload_acl_flag', $version);
+            $resource->takeReloadAclFlag($user);
+            $user->setReloadAclFlag(0)->setOrigData('reload_acl_flag', 0)
+                ->setAclVersion($resource->getAclVersion($user));
         }
 
+        $version = (int) $user->getAclVersion();
         if (!$this->getAcl() || $this->getAclVersion() !== $version) {
             $this->setAcl($this->_loadAcl());
             $this->setAclVersion($version);

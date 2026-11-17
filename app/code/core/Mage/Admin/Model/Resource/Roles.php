@@ -94,10 +94,7 @@ class Mage_Admin_Model_Resource_Roles extends Mage_Core_Model_Resource_Db_Abstra
         parent::_afterSave($object);
 
         if ($this->_updateRoleUsersAcl($object)) {
-            Mage::app()->getCache()->clean(
-                Zend_Cache::CLEANING_MODE_MATCHING_TAG,
-                [Mage_Adminhtml_Block_Page_Menu::CACHE_TAGS],
-            );
+            $this->_getUserResource()->cleanMenuCache();
         }
 
         return $this;
@@ -122,7 +119,9 @@ class Mage_Admin_Model_Resource_Roles extends Mage_Core_Model_Resource_Db_Abstra
         $adapter->delete($this->getMainTable(), ['parent_id = ?' => (int) $object->getId()]);
         $adapter->delete($this->_ruleTable, ['role_id = ?' => (int) $object->getId()]);
 
-        $this->_getUserResource()->bumpReloadAclFlag($users);
+        if ($this->_getUserResource()->bumpAclVersion($users) > 0) {
+            $this->_getUserResource()->cleanMenuCache();
+        }
 
         return $this;
     }
@@ -152,7 +151,7 @@ class Mage_Admin_Model_Resource_Roles extends Mage_Core_Model_Resource_Db_Abstra
      */
     private function _updateRoleUsersAcl(Mage_Admin_Model_Roles $role): bool
     {
-        return $this->_getUserResource()->bumpReloadAclFlag($this->getRoleUsers($role)) > 0;
+        return $this->_getUserResource()->bumpAclVersion($this->getRoleUsers($role)) > 0;
     }
 
     protected function _getUserResource(): Mage_Admin_Model_Resource_User

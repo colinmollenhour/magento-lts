@@ -15,18 +15,6 @@
 class Mage_Admin_Model_Resource_User extends Mage_Core_Model_Resource_Db_Abstract
 {
     /**
-     * Value of `reload_acl_flag` that only asks for one ACL reload (written by code that predates the ACL version)
-     */
-    public const ACL_VERSION_LEGACY_RELOAD = 1;
-
-    /**
-     * Range of the ACL version kept in `reload_acl_flag` (smallint), see bumpReloadAclFlag()
-     */
-    public const ACL_VERSION_MIN = 2;
-
-    public const ACL_VERSION_MAX = 32000;
-
-    /**
      * @inheritDoc
      */
     protected function _construct()
@@ -457,11 +445,8 @@ class Mage_Admin_Model_Resource_User extends Mage_Core_Model_Resource_Db_Abstrac
     /**
      * Ask every session of the user to reload its ACL on its next request
      *
-     * `reload_acl_flag` holds a per-user ACL version. Each session remembers the version it built its ACL
-     * with and rebuilds it when the value differs (see Mage_Admin_Model_Session::refreshAcl()), so the
-     * value is never cleared: a non-zero $flag moves the user to a new version. A zero $flag used to clear
-     * the flag after a reload and is ignored, because clearing it would hide the change from the user's
-     * other sessions.
+     * A non-zero $flag moves the user to a new ACL version (see bumpAclVersion()). A zero $flag clears
+     * the reload request that code predating the ACL version leaves in `reload_acl_flag`.
      *
      * @param  Mage_Admin_Model_User     $object
      * @param  int                       $flag
@@ -471,8 +456,17 @@ class Mage_Admin_Model_Resource_User extends Mage_Core_Model_Resource_Db_Abstrac
      */
     public function saveReloadAclFlag($object, $flag)
     {
-        if ($object->getId() > 0 && (int) $flag !== 0) {
-            $this->bumpReloadAclFlag([(int) $object->getId()]);
+        if ((int) $object->getId() > 0) {
+            if ((int) $flag !== 0) {
+                $this->bumpAclVersion([(int) $object->getId()]);
+                $this->cleanMenuCache();
+            } else {
+                $this->_getWriteAdapter()->update(
+                    $this->getMainTable(),
+                    ['reload_acl_flag' => 0],
+                    ['user_id = ?' => (int) $object->getId()],
+                );
+            }
         }
 
         return $this;
@@ -481,16 +475,15 @@ class Mage_Admin_Model_Resource_User extends Mage_Core_Model_Resource_Db_Abstrac
     /**
      * Move the given users to a new ACL version, so all their sessions rebuild the ACL on the next request
      *
-     * The version cycles through ACL_VERSION_MIN..ACL_VERSION_MAX and never takes the values 0 (never
-     * changed) or ACL_VERSION_LEGACY_RELOAD. The update is a single statement, so concurrent bumps
-     * cannot lose each other.
+     * Each session remembers the `acl_version` it built its ACL with (see Mage_Admin_Model_Session::refreshAcl()).
+     * The update is a single statement, so concurrent bumps cannot lose each other, and it can run in the
+     * transaction that changes the permissions. Clean the admin menu cache once that transaction is committed.
      *
      * @param  array<int|string>         $userIds
      * @return int                       number of updated users
-     * @throws Zend_Cache_Exception
      * @throws Zend_Db_Adapter_Exception
      */
-    public function bumpReloadAclFlag(array $userIds): int
+    public function bumpAclVersion(array $userIds): int
     {
         $userIds = array_values(array_filter(array_map(intval(...), $userIds), static fn(int $id): bool => $id > 0));
         if ($userIds === []) {
@@ -498,25 +491,36 @@ class Mage_Admin_Model_Resource_User extends Mage_Core_Model_Resource_Db_Abstrac
         }
 
         $adapter = $this->_getWriteAdapter();
-        $column = $adapter->quoteIdentifier('reload_acl_flag');
-        $rowsCount = $adapter->update(
+        return $adapter->update(
             $this->getMainTable(),
-            ['reload_acl_flag' => new Zend_Db_Expr(sprintf(
-                'CASE WHEN %1$s >= %2$d AND %1$s < %3$d THEN %1$s + 1 ELSE %2$d END',
-                $column,
-                self::ACL_VERSION_MIN,
-                self::ACL_VERSION_MAX,
-            ))],
+            ['acl_version' => new Zend_Db_Expr($adapter->quoteIdentifier('acl_version') . ' + 1')],
             ['user_id IN (?)' => $userIds],
         );
+    }
 
-        // refresh cache menu
-        Mage::app()->getCache()->clean(
-            Zend_Cache::CLEANING_MODE_MATCHING_TAG,
-            [Mage_Adminhtml_Block_Page_Menu::CACHE_TAGS],
-        );
+    /**
+     * Turn a reload request left in `reload_acl_flag` into a new ACL version, for every session of the user
+     *
+     * Code that predates the ACL version asks for a reload by writing a non-zero `reload_acl_flag`.
+     *
+     * @return bool                      whether this call took the request
+     * @throws Zend_Db_Adapter_Exception
+     */
+    public function takeReloadAclFlag(Mage_Admin_Model_User $user): bool
+    {
+        if ($user->getId() <= 0) {
+            return false;
+        }
 
-        return $rowsCount;
+        $adapter = $this->_getWriteAdapter();
+        return $adapter->update(
+            $this->getMainTable(),
+            [
+                'acl_version' => new Zend_Db_Expr($adapter->quoteIdentifier('acl_version') . ' + 1'),
+                'reload_acl_flag' => 0,
+            ],
+            ['user_id = ?' => (int) $user->getId(), 'reload_acl_flag <> ?' => 0],
+        ) > 0;
     }
 
     /**
@@ -524,7 +528,7 @@ class Mage_Admin_Model_Resource_User extends Mage_Core_Model_Resource_Db_Abstrac
      *
      * @throws Mage_Core_Exception
      */
-    public function getReloadAclFlag(Mage_Admin_Model_User $user): int
+    public function getAclVersion(Mage_Admin_Model_User $user): int
     {
         if ($user->getId() <= 0) {
             return 0;
@@ -532,16 +536,30 @@ class Mage_Admin_Model_Resource_User extends Mage_Core_Model_Resource_Db_Abstrac
 
         $adapter = $this->_getReadAdapter();
         $select = $adapter->select()
-            ->from($this->getMainTable(), ['reload_acl_flag'])
+            ->from($this->getMainTable(), ['acl_version'])
             ->where('user_id = ?', (int) $user->getId());
 
         return (int) $adapter->fetchOne($select);
     }
 
     /**
-     * Leave the ACL version alone when a loaded user is saved without changing it
+     * Clean the cached admin menu, which depends on the ACL
      *
-     * Writing back the value loaded earlier in the request would undo a concurrent bumpReloadAclFlag().
+     * @throws Zend_Cache_Exception
+     */
+    public function cleanMenuCache(): void
+    {
+        Mage::app()->getCache()->clean(
+            Zend_Cache::CLEANING_MODE_MATCHING_TAG,
+            [Mage_Adminhtml_Block_Page_Menu::CACHE_TAGS],
+        );
+    }
+
+    /**
+     * Leave the ACL version and an unchanged reload flag alone when a loaded user is saved
+     *
+     * Only bumpAclVersion() changes the ACL version. Writing back a value loaded earlier in the request
+     * would undo a concurrent bump or reload request.
      *
      * @return array<string, mixed>
      */
@@ -549,11 +567,11 @@ class Mage_Admin_Model_Resource_User extends Mage_Core_Model_Resource_Db_Abstrac
     protected function _prepareDataForSave(Mage_Core_Model_Abstract $object)
     {
         $data = parent::_prepareDataForSave($object);
-        if ($object->getId() > 0
-            && array_key_exists('reload_acl_flag', $data)
-            && !$object->dataHasChangedFor('reload_acl_flag')
-        ) {
-            unset($data['reload_acl_flag']);
+        if ($object->getId() > 0) {
+            unset($data['acl_version']);
+            if (array_key_exists('reload_acl_flag', $data) && !$object->dataHasChangedFor('reload_acl_flag')) {
+                unset($data['reload_acl_flag']);
+            }
         }
 
         return $data;
