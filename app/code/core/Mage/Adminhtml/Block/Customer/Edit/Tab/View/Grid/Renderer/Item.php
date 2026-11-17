@@ -70,6 +70,10 @@ class Mage_Adminhtml_Block_Customer_Edit_Tab_View_Grid_Renderer_Item extends Mag
     /**
      * Returns list of options and their values for product configuration
      *
+     * Option values are HTML. Custom option values (with an option_id) are escaped by the
+     * option type; configurable attribute option labels are returned raw, so they are
+     * escaped here.
+     *
      * @return array
      */
     protected function getOptionList()
@@ -77,7 +81,17 @@ class Mage_Adminhtml_Block_Customer_Edit_Tab_View_Grid_Renderer_Item extends Mag
         $item = $this->getItem();
         $product = $item->getProduct();
         $helper = $this->_getProductHelper($product);
-        return $helper->getOptions($item);
+        $options = $helper->getOptions($item);
+
+        if ($product->getTypeId() === Mage_Catalog_Model_Product_Type_Configurable::TYPE_CODE) {
+            foreach ($options as $key => $option) {
+                if (is_array($option) && !isset($option['option_id']) && isset($option['value'])) {
+                    $options[$key]['value'] = $this->escapeHtml($option['value']);
+                }
+            }
+        }
+
+        return $options;
     }
 
     /**
