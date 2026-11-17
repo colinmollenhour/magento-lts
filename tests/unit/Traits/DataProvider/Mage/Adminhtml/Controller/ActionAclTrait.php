@@ -269,6 +269,33 @@ trait ActionAclTrait
     }
 
     /**
+     * Action, request params, post data, resources, expected result.
+     * Profile 1 was built with the wizard, profile 2 is an Advanced Profile, batch N ran profile N.
+     *
+     * @return Generator<string, array<mixed>>
+     */
+    public static function provideDataflowGuiAclData(): Generator
+    {
+        $gui = ['system/convert/gui'];
+        $advanced = ['system/convert/profiles'];
+
+        foreach (['edit', 'run', 'delete', 'history', 'upload', 'download'] as $action) {
+            yield "$action of a wizard profile allowed with profiles" => [$action, ['id' => '1'], [], $gui, true];
+            yield "$action of an advanced profile denied to profiles" => [$action, ['id' => '2'], [], $gui, false];
+        }
+
+        yield 'save of a wizard profile allowed with profiles' => ['save', ['profile_id' => '1'], [], $gui, true];
+        yield 'save of an advanced profile denied to profiles' => ['save', ['profile_id' => '2'], [], $gui, false];
+        yield 'save of a new profile allowed with profiles' => ['save', [], [], $gui, true];
+        yield 'new profile allowed with profiles' => ['new', [], [], $gui, true];
+        yield 'batch run of a wizard profile allowed with profiles' => ['batchRun', [], ['batch_id' => '1'], $gui, true];
+        yield 'batch run of an advanced profile denied to profiles' => ['batchRun', [], ['batch_id' => '2'], $gui, false];
+        yield 'batch finish of a wizard profile allowed with profiles' => ['batchFinish', ['id' => '1'], [], $gui, true];
+        yield 'batch finish of an advanced profile denied to profiles' => ['batchFinish', ['id' => '2'], [], $gui, false];
+        yield 'wizard profiles denied to advanced profiles' => ['edit', ['id' => '1'], [], $advanced, false];
+    }
+
+    /**
      * Search module, resources besides Global Search, expected result.
      *
      * @return Generator<string, array<mixed>>

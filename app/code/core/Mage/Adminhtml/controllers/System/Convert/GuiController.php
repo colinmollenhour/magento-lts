@@ -23,6 +23,11 @@ class Mage_Adminhtml_System_Convert_GuiController extends Mage_Adminhtml_System_
     public const ADMIN_RESOURCE = 'admin/system/convert/gui';
 
     /**
+     * Entity types the profile wizard builds profiles for
+     */
+    protected const GUI_ENTITY_TYPES = ['product', 'customer'];
+
+    /**
      * Profiles list action
      * @return void
      */
@@ -100,6 +105,83 @@ class Mage_Adminhtml_System_Convert_GuiController extends Mage_Adminhtml_System_
         $this->_addLeft($this->getLayout()->createBlock('adminhtml/system_convert_gui_edit_tabs'));
 
         $this->renderLayout();
+    }
+
+    /**
+     * Save a profile built with the profile wizard
+     *
+     * The actions XML of a GUI profile is generated from the wizard fields, so a posted
+     * actions_xml is discarded and the wizard fields are required.
+     *
+     * @return void
+     * @throws Mage_Core_Exception
+     */
+    #[Override]
+    public function saveAction()
+    {
+        $request = $this->getRequest();
+        $post = $request->getPost();
+        if (is_array($post) && $post !== []) {
+            if (!is_array($post['gui_data'] ?? null)
+                || !in_array($post['entity_type'] ?? null, self::GUI_ENTITY_TYPES, true)
+            ) {
+                Mage::getSingleton('adminhtml/session')->addError($this->__('Invalid profile data.'));
+                $this->_redirect('*/*');
+                return;
+            }
+
+            unset($post['actions_xml']);
+            $request->setPost($post);
+        }
+
+        parent::saveAction();
+    }
+
+    /**
+     * The Profiles permission covers only profiles built with the profile wizard
+     *
+     * Advanced Profiles (no entity type) and their batches need the Advanced Profiles
+     * permission, which their own controller checks.
+     */
+    #[Override]
+    protected function _isAllowed(): bool
+    {
+        if (!parent::_isAllowed()) {
+            return false;
+        }
+
+        $request = $this->getRequest();
+        $action = strtolower($request->getActionName());
+        if ($action === 'batchrun' || $action === 'batchfinish') {
+            $batchId = (int) ($action === 'batchrun' ? $request->getPost('batch_id') : $request->getParam('id'));
+            return $batchId === 0 || $this->_isGuiProfile($this->_getBatchProfileId($batchId));
+        }
+
+        foreach (['id', 'profile_id'] as $param) {
+            $profileId = (int) $request->getParam($param);
+            if ($profileId !== 0 && !$this->_isGuiProfile($profileId)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Whether the profile was built with the profile wizard (or does not exist)
+     */
+    protected function _isGuiProfile(int $profileId): bool
+    {
+        $profile = Mage::getModel('dataflow/profile')->load($profileId);
+        return (int) $profile->getId() === 0 || in_array($profile->getEntityType(), self::GUI_ENTITY_TYPES, true);
+    }
+
+    /**
+     * Profile that started the batch
+     */
+    protected function _getBatchProfileId(int $batchId): int
+    {
+        return (int) Mage::getModel('dataflow/batch')->load($batchId)->getProfileId();
     }
 
     /**

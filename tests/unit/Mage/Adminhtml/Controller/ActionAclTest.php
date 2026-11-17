@@ -19,6 +19,7 @@ use Mage_Adminhtml_Controller_Action;
 use Mage_Adminhtml_Sales_Order_CreateController;
 use Mage_Adminhtml_Sales_Order_EditController;
 use Mage_Adminhtml_Sales_Order_InvoiceController;
+use Mage_Adminhtml_System_Convert_GuiController;
 use Mage_Adminhtml_TagController;
 use Mage_Adminhtml_Tax_ClassController;
 use Mage_Core_Controller_Request_Http;
@@ -109,6 +110,37 @@ final class ActionAclTest extends OpenMageTest
     }
 
     /**
+     * The Dataflow Profiles (GUI) permission reaches only wizard-built profiles and their batches.
+     *
+     * @dataProvider provideDataflowGuiAclData
+     * @param array<string, string> $params
+     * @param array<string, string> $post
+     * @param string[]              $granted
+     * @group Controller
+     */
+    public function testDataflowGuiAcl(string $action, array $params, array $post, array $granted, bool $expected): void
+    {
+        $this->loginWithRole($granted);
+        $controller = $this->createController(
+            Mage_Adminhtml_System_Convert_GuiController::class,
+            $action,
+            $params,
+            ['_isGuiProfile', '_getBatchProfileId'],
+        );
+        // Profile 1 was built with the wizard, profile 2 is an Advanced Profile; batch N ran profile N
+        $controller->method('_isGuiProfile')->willReturnCallback(static fn(int $profileId): bool => $profileId !== 2);
+        $controller->method('_getBatchProfileId')->willReturnCallback(static fn(int $batchId): int => $batchId);
+
+        $previousPost = $_POST;
+        $controller->getRequest()->setPost($post);
+        try {
+            self::assertSame($expected, $this->isAllowed($controller));
+        } finally {
+            $_POST = $previousPost;
+        }
+    }
+
+    /**
      * Global Search shows a module's results only to the permission that opens its grid,
      * as Mage_Adminhtml_IndexController::globalSearchAction() checks it.
      *
@@ -119,7 +151,9 @@ final class ActionAclTest extends OpenMageTest
     public function testGlobalSearchAcl(string $module, array $granted, bool $expected): void
     {
         $this->loginWithRole(['global_search', ...$granted]);
-        $acl = (string) Mage::getConfig()->getNode("adminhtml/global_search/$module/acl");
+        $config = Mage::getConfig();
+        self::assertNotNull($config);
+        $acl = (string) $config->getNode("adminhtml/global_search/$module/acl");
 
         self::assertNotSame('', $acl);
         self::assertSame($expected, Mage::getSingleton('admin/session')->isAllowed($acl));
