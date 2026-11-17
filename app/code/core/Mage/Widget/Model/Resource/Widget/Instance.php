@@ -288,7 +288,8 @@ class Mage_Widget_Model_Resource_Widget_Instance extends Mage_Core_Model_Resourc
                 break;
             }
 
-            $lastId = (int) max(array_keys($instances));
+            $fetched = count($instances);
+            $lastId  = (int) max(array_keys($instances));
 
             $layoutRows = $adapter->fetchAll(
                 $adapter->select()
@@ -327,7 +328,7 @@ class Mage_Widget_Model_Resource_Widget_Instance extends Mage_Core_Model_Resourc
 
             // core_layout_link and widget_instance_page_layout rows go with them (ON DELETE CASCADE)
             $this->_deleteLayoutUpdates($toDelete);
-        } while (count($instances) === $batchSize);
+        } while ($fetched === $batchSize);
 
         return array_values($removed);
     }
