@@ -128,7 +128,7 @@ class Mage_Widget_Adminhtml_Widget_InstanceController extends Mage_Adminhtml_Con
             && !$widgetInstance->isTypeDeclared()
         ) {
             $this->_getSession()->addError(Mage::helper('widget')->__(
-                'The type of this widget instance is not declared by any installed module, so it cannot be saved. Delete it, or reinstall the module that provides this widget type.',
+                'The type of this widget instance is not declared by any enabled module, so it cannot be saved. Delete it, or enable or reinstall the module that provides this widget type.',
             ));
         }
 
@@ -363,16 +363,13 @@ class Mage_Widget_Adminhtml_Widget_InstanceController extends Mage_Adminhtml_Con
             $validatorCustomLayout = Mage::getModel('adminhtml/layoutUpdate_validator');
             foreach ($data['widget_instance'] as $pageGroup) {
                 try {
-                    if (!is_array($pageGroup)
-                        || empty($pageGroup['page_group'])
-                        || !is_string($pageGroup['page_group'])
-                        || !isset($pageGroup[$pageGroup['page_group']])
-                    ) {
+                    // The same check as on save, so a page group skipped here is skipped there too
+                    $pageGroupData = $widgetInstance->validatePageGroup($pageGroup);
+                    if ($pageGroupData === null) {
                         continue;
                     }
 
                     // Validate the generated XML of every page group, whether or not it sets a template
-                    $pageGroupData = $pageGroup[$pageGroup['page_group']];
                     $layoutXml = $widgetInstance->generateLayoutUpdateXml(
                         $pageGroupData['block'] ?? '',
                         $pageGroupData['template'] ?? '',

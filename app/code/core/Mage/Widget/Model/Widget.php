@@ -15,6 +15,13 @@
 class Mage_Widget_Model_Widget extends Varien_Object
 {
     /**
+     * Whether each widget type checked so far is declared in a widget.xml, by type
+     *
+     * @var array<string, bool>
+     */
+    protected $_declaredTypes = [];
+
+    /**
      * Load Widgets XML config from widget.xml files and cache it
      *
      * @return Varien_Simplexml_Config
@@ -73,11 +80,29 @@ class Mage_Widget_Model_Widget extends Varien_Object
     /**
      * Check whether a widget type is declared in a widget.xml of an installed module
      *
+     * The answer for each type is kept for the rest of the request, because saving a widget
+     * instance checks its type once per layout handle; resetDeclaredTypes() forgets them.
+     *
      * @param string $type Widget type
      */
     public function isWidgetTypeDeclared($type): bool
     {
-        return $this->getXmlElementByType($type) !== null;
+        if (!is_string($type) || $type === '') {
+            return false;
+        }
+
+        return $this->_declaredTypes[$type] ??= $this->getXmlElementByType($type) !== null;
+    }
+
+    /**
+     * Forget the answers kept by isWidgetTypeDeclared(), so the next check reads the widget config again
+     *
+     * @return $this
+     */
+    public function resetDeclaredTypes()
+    {
+        $this->_declaredTypes = [];
+        return $this;
     }
 
     /**

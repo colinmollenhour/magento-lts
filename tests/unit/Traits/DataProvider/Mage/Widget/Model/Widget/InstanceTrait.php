@@ -77,5 +77,48 @@ trait InstanceTrait
         yield 'comment' => [$type, $block('', '<!-- x -->'), false];
         yield 'namespaced element' => [$type, '<reference name="content"><x:block xmlns:x="urn:x" type="' . $type . '" name="abc"/></reference>', false];
         yield 'other layout instruction' => [$type, '<remove name="content"/>', false];
+        yield 'block without name' => [$type, '<reference name="content"><block type="' . $type . '"/></reference>', false];
+        yield 'block with empty name' => [$type, '<reference name="content"><block type="' . $type . '" name=""/></reference>', false];
+        yield 'reference without name' => [$type, '<reference><block type="' . $type . '" name="abc"/></reference>', false];
+        yield 'escaped quote in reference name' => [$type, '<reference name="content&quot;"><block type="' . $type . '" name="abc"/></reference>', false];
+        yield 'escaped quote in template' => [$type, $block(' template="cms/widget/link/link_block.phtml&quot;"'), false];
+        yield 'template set through a parameter' => [$type, $block('', '<action method="setData"><name>template</name><value>page/html/header.phtml</value></action>'), false];
+        yield 'parameter without a name' => [$type, $block('', '<action method="setData"><name/><value>y</value></action>'), false];
+    }
+
+    /**
+     * Parameter values the generator must escape so that its output is well-formed and round-trips
+     *
+     * @return Generator<string, array{string, string}>
+     */
+    public static function provideWidgetParameterValueData(): Generator
+    {
+        yield 'HTML named entity' => ['Free&nbsp;shipping', 'Free&nbsp;shipping'];
+        yield 'XML entity' => ['Tom &amp; Jerry', 'Tom &amp; Jerry'];
+        yield 'numeric character reference' => ['&#60;b&#62;', '&#60;b&#62;'];
+        yield 'quotes' => ['Say "hi" and \'bye\'', 'Say "hi" and \'bye\''];
+        yield 'ampersand' => ['Fish & chips', 'Fish & chips'];
+        yield 'markup' => ['<b>bold</b> </value></action><action method="setTemplate">', '<b>bold</b> </value></action><action method="setTemplate">'];
+        yield 'CDATA end' => [']]>', ']]>'];
+        yield 'unicode' => ['Grüße, 日本語, emoji 🎉', 'Grüße, 日本語, emoji 🎉'];
+        yield 'line breaks and tabs' => ["a\tb\r\nc", "a\tb\nc"];
+        yield 'control character' => ["a\x01b", "a\u{FFFD}b"];
+        yield 'invalid UTF-8' => ["a\xC3b", "a\u{FFFD}b"];
+    }
+
+    /**
+     * @return Generator<string, array{string, string, null|string}>
+     */
+    public static function provideLayoutUpdateRemovalReasonData(): Generator
+    {
+        $type = 'cms/widget_page_link';
+        $generated = '<reference name="content"><block type="' . $type . '" name="abc"/></reference>';
+
+        yield 'generated update of a declared type' => [$type, $generated, null];
+        yield 'empty update of a declared type' => [$type, '', null];
+        yield 'empty update of an undeclared type' => ['core/text_list', '', null];
+        yield 'other XML on a declared type' => [$type, '<remove name="content"/>', 'unexpected layout update XML'];
+        yield 'malformed XML on a declared type' => [$type, '<reference name="content">', 'unexpected layout update XML'];
+        yield 'undeclared type' => ['core/text_list', '<reference name="content"><block type="core/text_list" name="abc"/></reference>', 'undeclared widget type'];
     }
 }

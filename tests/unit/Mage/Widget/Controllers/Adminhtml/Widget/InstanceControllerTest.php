@@ -78,6 +78,48 @@ final class InstanceControllerTest extends OpenMageTest
     }
 
     /**
+     * The form check and the save use the same page group validation, so a malformed page group is reported, not skipped.
+     *
+     * @group Controller
+     */
+    public function testValidatePostDataRejectsMalformedPageGroup(): void
+    {
+        $session = $this->createPartialMock(Mage_Adminhtml_Model_Session::class, ['addError']);
+        $session->expects(self::once())->method('addError')
+            ->with('An error occurred during POST data validation: Wrong widget display option specified.');
+
+        $subject = $this->createSubject([], $session);
+
+        self::assertFalse($this->validatePostData($subject, ['widget_instance' => [['page_group' => ['all_pages']]]]));
+    }
+
+    /**
+     * @group Controller
+     */
+    public function testValidatePostDataAcceptsValidPageGroup(): void
+    {
+        $session = $this->createPartialMock(Mage_Adminhtml_Model_Session::class, ['addError']);
+        $session->expects(self::never())->method('addError');
+
+        $subject = $this->createSubject([], $session);
+        $pageGroup = ['page_group' => 'all_pages', 'all_pages' => ['page_id' => 0, 'for' => 'all', 'block' => 'content', 'template' => '']];
+
+        self::assertTrue($this->validatePostData($subject, ['widget_instance' => [$pageGroup, ['page_group' => '']]]));
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function validatePostData(Subject $subject, array $data): bool
+    {
+        /** @var Mage_Widget_Model_Widget_Instance $instance */
+        $instance = Mage::getModel('widget/widget_instance');
+        $instance->setType('cms/widget_page_link')->setPackageTheme('base/default');
+
+        return (new ReflectionMethod($subject, '_validatePostData'))->invoke($subject, $instance, $data);
+    }
+
+    /**
      * @param  array<string, string> $params
      * @return MockObject&Subject
      */

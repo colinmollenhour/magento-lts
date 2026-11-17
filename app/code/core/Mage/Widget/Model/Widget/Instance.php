@@ -49,6 +49,15 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
 
     public const XML_NODE_RELATED_CACHE = 'global/widget/related_cache_types';
 
+    /**
+     * Reasons the Mage_Widget 1.6.0.2 data upgrade removes a stored layout update
+     *
+     * @see getLayoutUpdateRemovalReason()
+     */
+    public const LAYOUT_UPDATE_UNDECLARED_TYPE = 'undeclared widget type';
+
+    public const LAYOUT_UPDATE_UNEXPECTED_XML  = 'unexpected layout update XML';
+
     protected $_layoutHandles = [];
 
     protected $_specificEntitiesLayoutHandles = [];
@@ -129,13 +138,8 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
         $pageGroups = $this->getDataByKey('page_groups');
         if ($pageGroups) {
             foreach ($pageGroups as $pageGroup) {
-                if (!is_array($pageGroup) || !isset($pageGroup['page_group'])) {
-                    continue;
-                }
-
-                if (isset($pageGroup[$pageGroup['page_group']])) {
-                    $this->_validatePageGroup($pageGroup['page_group'], $pageGroup[$pageGroup['page_group']]);
-                    $pageGroupData = $pageGroup[$pageGroup['page_group']];
+                $pageGroupData = $this->validatePageGroup($pageGroup);
+                if ($pageGroupData !== null) {
                     if ($pageGroupData['page_id']) {
                         $pageGroupIds[] = $pageGroupData['page_id'];
                     }
@@ -192,7 +196,40 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
     }
 
     /**
-     * Validate one page group (display-on rule) before it is turned into layout updates
+     * Validate one entry of the page groups (display-on rules) before it is turned into layout updates
+     *
+     * The admin form and _beforeSave() share this check, so both treat a malformed entry the same way.
+     *
+     * @param  mixed               $pageGroup one page groups entry: its code under "page_group" and its data under that code
+     * @return null|array<mixed>   the page group data, or null if the entry holds none
+     * @throws Mage_Core_Exception if the page group is malformed
+     */
+    public function validatePageGroup($pageGroup): ?array
+    {
+        if (!is_array($pageGroup) || !isset($pageGroup['page_group'])) {
+            return null;
+        }
+
+        $code = $pageGroup['page_group'];
+        if (!is_string($code)) {
+            throw Mage::exception('Mage_Core', Mage::helper('widget')->__('Wrong widget display option specified.'));
+        }
+
+        if (!isset($pageGroup[$code])) {
+            return null;
+        }
+
+        $pageGroupData = $pageGroup[$code];
+        if (!is_array($pageGroupData)) {
+            throw Mage::exception('Mage_Core', Mage::helper('widget')->__('Wrong widget display option specified.'));
+        }
+
+        $this->_validatePageGroup($code, $pageGroupData);
+        return $pageGroupData;
+    }
+
+    /**
+     * Validate the data of one page group
      *
      * @param  string              $pageGroup     page group code, e.g. "all_pages" or "anchor_categories"
      * @param  mixed               $pageGroupData page group data posted for that code
@@ -218,7 +255,7 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
         if (!$this->isValidBlockReference($pageGroupData['block'] ?? '')
             || !$this->isValidTemplatePath($pageGroupData['template'] ?? '')
         ) {
-            Mage::throwException('Templatepath or block reference contain special characters.');
+            Mage::throwException(Mage::helper('widget')->__('Templatepath or block reference contain special characters.'));
         }
     }
 
@@ -229,19 +266,29 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
      */
     public function isValidBlockReference($blockReference): bool
     {
-        return is_string($blockReference)
-            && $blockReference === htmlspecialchars($blockReference, ENT_QUOTES | ENT_HTML5);
+        return $this->_hasNoMarkupCharacters($blockReference);
     }
 
     /**
      * Check that a template path contains no characters with a meaning in XML or HTML
      *
+     * This does not check where the path leads; the design package resolves it inside the theme.
+     *
      * @param mixed $templatePath
      */
     public function isValidTemplatePath($templatePath): bool
     {
-        return is_string($templatePath)
-            && $templatePath === htmlspecialchars($templatePath, ENT_QUOTES | ENT_HTML5);
+        return $this->_hasNoMarkupCharacters($templatePath);
+    }
+
+    /**
+     * Check that a value is a string without characters that HTML escaping would change
+     *
+     * @param mixed $value
+     */
+    protected function _hasNoMarkupCharacters($value): bool
+    {
+        return is_string($value) && $value === htmlspecialchars($value, ENT_QUOTES | ENT_HTML5);
     }
 
     /**
@@ -588,6 +635,9 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
     /**
      * Generate layout update xml
      *
+     * Nothing is generated for an incomplete new instance, for an unreadable template, or for a
+     * type that no widget.xml declares (_beforeSave() refuses to save such an instance, and logs it).
+     *
      * @param  string $blockReference
      * @param  string $templatePath
      * @return string
@@ -596,17 +646,10 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
     {
         $templatePath = (string) $templatePath;
         if (!$this->isValidTemplatePath($templatePath) || !$this->isValidBlockReference($blockReference)) {
-            Mage::throwException('Templatepath or block reference contain special characters.');
+            Mage::throwException(Mage::helper('widget')->__('Templatepath or block reference contain special characters.'));
         }
 
-        if (!$this->isTypeDeclared()) {
-            Mage::log(
-                sprintf(
-                    'No layout update generated for widget instance %s: its type is not declared in any widget.xml.',
-                    $this->_getLogLabel(),
-                ),
-                Level::Warning,
-            );
+        if ((!$this->getId() && !$this->isCompleteToCreate()) || !$this->isTypeDeclared()) {
             return '';
         }
 
@@ -615,9 +658,7 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
             '_package' => $this->getPackage(),
             '_theme'   => $this->getTheme(),
         ]);
-        if (!$this->getId() && !$this->isCompleteToCreate()
-            || ($templatePath && !is_readable($templateFilename))
-        ) {
+        if ($templatePath && !is_readable($templateFilename)) {
             return '';
         }
 
@@ -642,7 +683,7 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
             if ($name && strlen((string) $value)) {
                 $xml .= '<action method="setData">'
                     . '<name>' . $this->_escapeXml($name) . '</name>'
-                    . '<value>' . Mage::helper('widget')->escapeHtml($value) . '</value>'
+                    . '<value>' . $this->_escapeXml($value) . '</value>'
                     . '</action>';
             }
         }
@@ -680,8 +721,35 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
             return true;
         }
 
-        if (!$this->isTypeDeclared()) {
-            return false;
+        return $this->isTypeDeclared() && $this->getGeneratedLayoutUpdateBlockType($xml) === $this->getType();
+    }
+
+    /**
+     * Why the data upgrade removes a stored layout update of this instance, or null if it is kept
+     *
+     * @param  string                                                                      $xml layout update XML as stored in core_layout_update.xml
+     * @return null|self::LAYOUT_UPDATE_UNDECLARED_TYPE|self::LAYOUT_UPDATE_UNEXPECTED_XML
+     */
+    public function getLayoutUpdateRemovalReason($xml): ?string
+    {
+        if ($this->isGeneratedLayoutUpdateXml($xml)) {
+            return null;
+        }
+
+        return $this->isTypeDeclared() ? self::LAYOUT_UPDATE_UNEXPECTED_XML : self::LAYOUT_UPDATE_UNDECLARED_TYPE;
+    }
+
+    /**
+     * Block type of a layout update that has the shape generateLayoutUpdateXml() produces, or null for any other XML
+     *
+     * The type itself is not checked; isGeneratedLayoutUpdateXml() compares it with this instance's type.
+     *
+     * @param string $xml layout update XML as stored in core_layout_update.xml
+     */
+    public function getGeneratedLayoutUpdateBlockType($xml): ?string
+    {
+        if (!is_string($xml) || trim($xml) === '') {
+            return null;
         }
 
         $document = new DOMDocument();
@@ -690,34 +758,35 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
         libxml_clear_errors();
         libxml_use_internal_errors($previous);
         if (!$loaded || !$document->documentElement instanceof DOMElement) {
-            return false;
+            return null;
         }
 
         $references = $this->_getChildElements($document->documentElement);
         if ($references === null || count($references) !== 1
-            || !$this->_isPlainElement($references[0], 'reference', ['name'])
+            || !$this->_isPlainElement($references[0], 'reference', ['name'], ['name'])
+            || !$this->isValidBlockReference($references[0]->getAttribute('name'))
         ) {
-            return false;
+            return null;
         }
 
         $blocks = $this->_getChildElements($references[0]);
         if ($blocks === null || count($blocks) !== 1
-            || !$this->_isPlainElement($blocks[0], 'block', ['type', 'name', 'template'])
-            || $blocks[0]->getAttribute('type') !== $this->getType()
+            || !$this->_isPlainElement($blocks[0], 'block', ['type', 'name', 'template'], ['type', 'name'])
+            || ($blocks[0]->hasAttribute('template') && !$this->isValidTemplatePath($blocks[0]->getAttribute('template')))
         ) {
-            return false;
+            return null;
         }
 
         $actions = $this->_getChildElements($blocks[0]);
         if ($actions === null) {
-            return false;
+            return null;
         }
 
         foreach ($actions as $action) {
-            if (!$this->_isPlainElement($action, 'action', ['method'])
+            if (!$this->_isPlainElement($action, 'action', ['method'], ['method'])
                 || $action->getAttribute('method') !== 'setData'
             ) {
-                return false;
+                return null;
             }
 
             $arguments = $this->_getChildElements($action);
@@ -726,12 +795,14 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
                 || !$this->_isPlainElement($arguments[1], 'value', [])
                 || $this->_getChildElements($arguments[0]) !== []
                 || $this->_getChildElements($arguments[1]) !== []
+                // The generator never sets the template through a parameter, nor a parameter without a name
+                || in_array($arguments[0]->textContent, ['', 'template'], true)
             ) {
-                return false;
+                return null;
             }
         }
 
-        return true;
+        return $blocks[0]->getAttribute('type');
     }
 
     /**
@@ -765,11 +836,12 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
     }
 
     /**
-     * Check an element's name, that it has no namespace, and that it only has allowed attributes
+     * Check an element's name, that it has no namespace, that it only has allowed attributes, and has the required ones
      *
      * @param string[] $allowedAttributes
+     * @param string[] $requiredAttributes
      */
-    protected function _isPlainElement(DOMElement $element, string $name, array $allowedAttributes): bool
+    protected function _isPlainElement(DOMElement $element, string $name, array $allowedAttributes, array $requiredAttributes = []): bool
     {
         if ($element->namespaceURI !== null || $element->nodeName !== $name) {
             return false;
@@ -780,6 +852,12 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
                 || $attribute->namespaceURI !== null
                 || !in_array($attribute->nodeName, $allowedAttributes, true)
             ) {
+                return false;
+            }
+        }
+
+        foreach ($requiredAttributes as $attribute) {
+            if ($element->getAttribute($attribute) === '') {
                 return false;
             }
         }
@@ -795,7 +873,9 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
      */
     protected function _escapeXml($value)
     {
-        return htmlspecialchars((string) $value, ENT_QUOTES | ENT_XML1 | ENT_SUBSTITUTE, 'UTF-8');
+        $escaped = htmlspecialchars((string) $value, ENT_QUOTES | ENT_XML1 | ENT_SUBSTITUTE, 'UTF-8');
+        // Control characters are not allowed in XML 1.0 even when escaped, and would make the update unreadable
+        return (string) preg_replace('/[^\x{9}\x{A}\x{D}\x{20}-\x{D7FF}\x{E000}-\x{FFFD}\x{10000}-\x{10FFFF}]/u', "\u{FFFD}", $escaped);
     }
 
     /**

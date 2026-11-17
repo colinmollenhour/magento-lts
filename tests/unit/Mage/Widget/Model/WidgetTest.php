@@ -16,6 +16,7 @@ use Mage_Widget_Model_Widget as Subject;
 use OpenMage\Tests\Unit\OpenMageTest;
 use OpenMage\Tests\Unit\Traits\DataProvider\Mage\Widget\Model\WidgetTrait;
 use Override;
+use Varien_Simplexml_Config;
 use Varien_Simplexml_Element;
 
 final class WidgetTest extends OpenMageTest
@@ -49,5 +50,25 @@ final class WidgetTest extends OpenMageTest
         }
 
         self::assertSame($declared, self::$subject->isWidgetTypeDeclared($type));
+    }
+
+    /**
+     * Each widget type is looked up once, until the answers are reset.
+     *
+     * @group Model
+     */
+    public function testDeclaredTypesAreReadOnce(): void
+    {
+        $subject = $this->createPartialMock(Subject::class, ['getXmlConfig']);
+        $subject->expects(self::exactly(3))->method('getXmlConfig')
+            ->willReturn(new Varien_Simplexml_Config('<widgets><a type="cms/widget_page_link"/><b type="catalog/product_widget_new"/></widgets>'));
+
+        foreach ([1, 2] as $check) {
+            self::assertTrue($subject->isWidgetTypeDeclared('cms/widget_page_link'), "check $check");
+            self::assertFalse($subject->isWidgetTypeDeclared('core/text_list'), "check $check");
+        }
+
+        $subject->resetDeclaredTypes();
+        self::assertTrue($subject->isWidgetTypeDeclared('cms/widget_page_link'));
     }
 }
