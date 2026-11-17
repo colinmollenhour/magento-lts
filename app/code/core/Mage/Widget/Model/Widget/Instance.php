@@ -7,6 +7,8 @@
  * @package    Mage_Widget
  */
 
+use Monolog\Level;
+
 /**
  * Widget Instance Model
  *
@@ -111,12 +113,28 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
     #[Override]
     protected function _beforeSave()
     {
+        if (!$this->isTypeDeclared()) {
+            Mage::log(
+                sprintf(
+                    'Refused to save widget instance %s: its type is not declared in any widget.xml.',
+                    $this->_getLogLabel(),
+                ),
+                Level::Warning,
+            );
+            Mage::throwException(Mage::helper('widget')->__('Wrong widget type specified.'));
+        }
+
         $pageGroupIds = [];
         $tmpPageGroups = [];
         $pageGroups = $this->getDataByKey('page_groups');
         if ($pageGroups) {
             foreach ($pageGroups as $pageGroup) {
+                if (!is_array($pageGroup) || !isset($pageGroup['page_group'])) {
+                    continue;
+                }
+
                 if (isset($pageGroup[$pageGroup['page_group']])) {
+                    $this->_validatePageGroup($pageGroup['page_group'], $pageGroup[$pageGroup['page_group']]);
                     $pageGroupData = $pageGroup[$pageGroup['page_group']];
                     if ($pageGroupData['page_id']) {
                         $pageGroupIds[] = $pageGroupData['page_id'];
@@ -174,6 +192,74 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
     }
 
     /**
+     * Validate one page group (display-on rule) before it is turned into layout updates
+     *
+     * @param  string              $pageGroup     page group code, e.g. "all_pages" or "anchor_categories"
+     * @param  mixed               $pageGroupData page group data posted for that code
+     * @throws Mage_Core_Exception
+     */
+    protected function _validatePageGroup($pageGroup, $pageGroupData): void
+    {
+        if (!is_array($pageGroupData)
+            || ($pageGroup !== 'pages' && !isset($this->_layoutHandles[$pageGroup]))
+        ) {
+            Mage::throwException(Mage::helper('widget')->__('Wrong widget display option specified.'));
+        }
+
+        $for = $pageGroupData['for'] ?? self::ALL_ENTITIES;
+        if ($for !== self::ALL_ENTITIES && $for !== self::SPECIFIC_ENTITIES) {
+            Mage::throwException(Mage::helper('widget')->__('Wrong widget display option specified.'));
+        }
+
+        if ($for === self::SPECIFIC_ENTITIES && !isset($this->_specificEntitiesLayoutHandles[$pageGroup])) {
+            Mage::throwException(Mage::helper('widget')->__('Wrong widget display option specified.'));
+        }
+
+        if (!$this->isValidBlockReference($pageGroupData['block'] ?? '')
+            || !$this->isValidTemplatePath($pageGroupData['template'] ?? '')
+        ) {
+            Mage::throwException('Templatepath or block reference contain special characters.');
+        }
+    }
+
+    /**
+     * Check that a block reference (layout block name) contains no characters with a meaning in XML or HTML
+     *
+     * @param mixed $blockReference
+     */
+    public function isValidBlockReference($blockReference): bool
+    {
+        return is_string($blockReference)
+            && $blockReference === htmlspecialchars($blockReference, ENT_QUOTES | ENT_HTML5);
+    }
+
+    /**
+     * Check that a template path contains no characters with a meaning in XML or HTML
+     *
+     * @param mixed $templatePath
+     */
+    public function isValidTemplatePath($templatePath): bool
+    {
+        return is_string($templatePath)
+            && $templatePath === htmlspecialchars($templatePath, ENT_QUOTES | ENT_HTML5);
+    }
+
+    /**
+     * Check that the widget type is declared in a widget.xml of an installed module
+     *
+     * Only declared widget types may be placed on the storefront. Instances saved with any other
+     * type (for example by an older release that did not check it) can still be loaded and deleted,
+     * but cannot be saved and get no layout update generated.
+     */
+    public function isTypeDeclared(): bool
+    {
+        $type = $this->getType();
+        return is_string($type)
+            && $type !== ''
+            && Mage::getSingleton('widget/widget')->isWidgetTypeDeclared($type);
+    }
+
+    /**
      * Validate widget instance data
      *
      * @return string|true
@@ -181,6 +267,10 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
     public function validate()
     {
         if ($this->isCompleteToCreate()) {
+            if (!$this->isTypeDeclared()) {
+                return Mage::helper('widget')->__('Wrong widget type specified.');
+            }
+
             return true;
         }
 
@@ -504,10 +594,20 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
      */
     public function generateLayoutUpdateXml($blockReference, $templatePath = '')
     {
-        if ($templatePath !== htmlspecialchars($templatePath, ENT_QUOTES | ENT_HTML5)
-            || $blockReference !== htmlspecialchars($blockReference, ENT_QUOTES | ENT_HTML5)
-        ) {
+        $templatePath = (string) $templatePath;
+        if (!$this->isValidTemplatePath($templatePath) || !$this->isValidBlockReference($blockReference)) {
             Mage::throwException('Templatepath or block reference contain special characters.');
+        }
+
+        if (!$this->isTypeDeclared()) {
+            Mage::log(
+                sprintf(
+                    'No layout update generated for widget instance %s: its type is not declared in any widget.xml.',
+                    $this->_getLogLabel(),
+                ),
+                Level::Warning,
+            );
+            return '';
         }
 
         $templateFilename = Mage::getSingleton('core/design_package')->getTemplateFilename($templatePath, [
@@ -522,18 +622,18 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
         }
 
         $parameters = $this->getWidgetParameters();
-        $xml = '<reference name="' . $blockReference . '">';
+        $xml = '<reference name="' . $this->_escapeXml($blockReference) . '">';
         $template = '';
         if (isset($parameters['template'])) {
             unset($parameters['template']);
         }
 
         if ($templatePath) {
-            $template = ' template="' . $templatePath . '"';
+            $template = ' template="' . $this->_escapeXml($templatePath) . '"';
         }
 
         $hash = Mage::helper('core')->uniqHash();
-        $xml .= '<block type="' . $this->getType() . '" name="' . $hash . '"' . $template . '>';
+        $xml .= '<block type="' . $this->_escapeXml($this->getType()) . '" name="' . $this->_escapeXml($hash) . '"' . $template . '>';
         foreach ($parameters as $name => $value) {
             if (is_array($value)) {
                 $value = implode(',', $value);
@@ -541,13 +641,33 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
 
             if ($name && strlen((string) $value)) {
                 $xml .= '<action method="setData">'
-                    . '<name>' . $name . '</name>'
+                    . '<name>' . $this->_escapeXml($name) . '</name>'
                     . '<value>' . Mage::helper('widget')->escapeHtml($value) . '</value>'
                     . '</action>';
             }
         }
 
         return $xml . '</block></reference>';
+    }
+
+    /**
+     * Identify this instance in log messages
+     */
+    protected function _getLogLabel(): string
+    {
+        $id = $this->getId();
+        return $id === null || $id === '' ? '(new)' : '#' . $id;
+    }
+
+    /**
+     * Escape a value for use in layout update XML text or a double- or single-quoted attribute
+     *
+     * @param  mixed  $value
+     * @return string
+     */
+    protected function _escapeXml($value)
+    {
+        return htmlspecialchars((string) $value, ENT_QUOTES | ENT_XML1 | ENT_SUBSTITUTE, 'UTF-8');
     }
 
     /**

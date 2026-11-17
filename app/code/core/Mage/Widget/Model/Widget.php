@@ -44,17 +44,40 @@ class Mage_Widget_Model_Widget extends Varien_Object
     /**
      * Return widget XML config element based on its type
      *
+     * The type is compared as a plain string, never interpolated into an XPath expression,
+     * so a type that is not declared in a widget.xml can never resolve to a declared widget.
+     *
      * @param  string                        $type Widget type
      * @return null|Varien_Simplexml_Element
      */
     public function getXmlElementByType($type)
     {
-        $elements = $this->getXmlConfig()->getXpath('*[@type="' . $type . '"]');
-        if (is_array($elements) && isset($elements[0]) && $elements[0] instanceof Varien_Simplexml_Element) {
-            return $elements[0];
+        if (!is_string($type) || $type === '') {
+            return null;
+        }
+
+        $widgets = $this->getXmlConfig()->getNode();
+        if (!$widgets instanceof Varien_Simplexml_Element) {
+            return null;
+        }
+
+        foreach ($widgets->children() as $element) {
+            if ($element instanceof Varien_Simplexml_Element && $element->getAttribute('type') === $type) {
+                return $element;
+            }
         }
 
         return null;
+    }
+
+    /**
+     * Check whether a widget type is declared in a widget.xml of an installed module
+     *
+     * @param string $type Widget type
+     */
+    public function isWidgetTypeDeclared($type): bool
+    {
+        return $this->getXmlElementByType($type) !== null;
     }
 
     /**
