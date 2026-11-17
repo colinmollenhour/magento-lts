@@ -6812,11 +6812,6 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/code/core/Mage/Widget/controllers/Adminhtml/Widget/InstanceController.php',
 ];
 $ignoreErrors[] = [
-    'rawMessage' => 'Cannot call method validate() on bool|Mage_Widget_Model_Widget_Instance.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/code/core/Mage/Widget/controllers/Adminhtml/Widget/InstanceController.php',
-];
-$ignoreErrors[] = [
     'rawMessage' => 'Cannot call method setWidgetType() on Mage_Core_Block_Abstract|false.',
     'count' => 1,
     'path' => __DIR__ . '/../app/code/core/Mage/Widget/controllers/Adminhtml/WidgetController.php',
