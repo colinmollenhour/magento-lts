@@ -109,6 +109,23 @@ final class ActionAclTest extends OpenMageTest
     }
 
     /**
+     * Global Search shows a module's results only to the permission that opens its grid,
+     * as Mage_Adminhtml_IndexController::globalSearchAction() checks it.
+     *
+     * @dataProvider provideGlobalSearchAclData
+     * @param string[] $granted
+     * @group Controller
+     */
+    public function testGlobalSearchAcl(string $module, array $granted, bool $expected): void
+    {
+        $this->loginWithRole(['global_search', ...$granted]);
+        $acl = (string) Mage::getConfig()->getNode("adminhtml/global_search/$module/acl");
+
+        self::assertNotSame('', $acl);
+        self::assertSame($expected, Mage::getSingleton('admin/session')->isAllowed($acl));
+    }
+
+    /**
      * The invoice form offers online capture and Create Shipment only to the matching permission.
      *
      * @dataProvider provideInvoiceSaveOptionsData

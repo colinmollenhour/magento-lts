@@ -269,6 +269,22 @@ trait ActionAclTrait
     }
 
     /**
+     * Search module, resources besides Global Search, expected result.
+     *
+     * @return Generator<string, array<mixed>>
+     */
+    public static function provideGlobalSearchAclData(): Generator
+    {
+        yield 'products denied to url rewrites' => ['products', ['catalog/urlrewrite'], false];
+        yield 'products allowed with manage products' => ['products', ['catalog/products'], true];
+        yield 'customers denied to customer groups' => ['customers', ['customer/group'], false];
+        yield 'customers allowed with manage customers' => ['customers', ['customer/manage'], true];
+        yield 'orders denied to tax rules' => ['sales', ['sales/tax/rules'], false];
+        yield 'orders denied to order create' => ['sales', ['sales/order/actions/create'], false];
+        yield 'orders allowed with order view' => ['sales', ['sales/order/actions/view'], true];
+    }
+
+    /**
      * Resources, posted invoice options that must survive.
      *
      * @return Generator<string, array<mixed>>
