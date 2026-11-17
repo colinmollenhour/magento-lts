@@ -18,6 +18,9 @@ use Mage_Adminhtml_Report_SalesController;
 use Mage_Adminhtml_Report_ShopcartController;
 use Mage_Adminhtml_Report_TagController;
 use Mage_Adminhtml_ReportController;
+use Mage_Adminhtml_Sales_Order_CreditmemoController;
+use Mage_Adminhtml_Sales_Order_InvoiceController;
+use Mage_Adminhtml_Sales_Order_ShipmentController;
 use Mage_Adminhtml_Sales_OrderController;
 use Mage_Adminhtml_System_ConfigController;
 use Mage_Adminhtml_Tax_RateController;
@@ -118,6 +121,51 @@ trait ActionAclTrait
         yield 'tax rate import denied without import export' => [$taxRate, 'importPost', [], ['sales/tax/rates'], false];
         yield 'tax rate import allowed with import export' => [$taxRate, 'importPost', [], ['sales/tax/import_export'], true];
         yield 'tax rate grid export unchanged' => [$taxRate, 'exportCsv', [], ['sales/tax/rates'], true];
+
+        $invoice = Mage_Adminhtml_Sales_Order_InvoiceController::class;
+        $newDoc = ['order_id' => '5'];
+        $existingInvoice = ['invoice_id' => '7'];
+        foreach (['start', 'new', 'updateQty', 'save'] as $action) {
+            yield "invoice $action denied to invoice grid" => [$invoice, $action, $newDoc, ['sales/invoice'], false];
+            yield "invoice $action allowed with order invoice" => [$invoice, $action, $newDoc, ['sales/order/actions/invoice'], true];
+        }
+
+        yield 'invoice capture denied to invoice grid' => [$invoice, 'capture', $existingInvoice, ['sales/invoice'], false];
+        yield 'invoice capture allowed with capture' => [$invoice, 'capture', $existingInvoice, ['sales/order/actions/capture'], true];
+        yield 'invoice capture of a new invoice denied without order invoice' => [$invoice, 'capture', $newDoc, ['sales/order/actions/capture'], false];
+        yield 'invoice capture of a new invoice allowed with capture and invoice' => [$invoice, 'capture', $newDoc, ['sales/order/actions/capture', 'sales/order/actions/invoice'], true];
+        yield 'invoice cancel denied to invoice grid' => [$invoice, 'cancel', $existingInvoice, ['sales/invoice'], false];
+        yield 'invoice cancel allowed with cancel' => [$invoice, 'cancel', $existingInvoice, ['sales/order/actions/cancel'], true];
+        yield 'invoice view still allowed to invoice grid' => [$invoice, 'view', $existingInvoice, ['sales/invoice'], true];
+        yield 'invoice comment still allowed to invoice grid' => [$invoice, 'addComment', $existingInvoice, ['sales/invoice'], true];
+        yield 'invoice void still allowed to invoice grid' => [$invoice, 'void', $existingInvoice, ['sales/invoice'], true];
+        yield 'invoice view of a new invoice denied to invoice grid' => [$invoice, 'view', $newDoc, ['sales/invoice'], false];
+
+        $shipment = Mage_Adminhtml_Sales_Order_ShipmentController::class;
+        $existingShipment = ['shipment_id' => '7'];
+        foreach (['start', 'new', 'save'] as $action) {
+            yield "shipment $action denied to shipment grid" => [$shipment, $action, $newDoc, ['sales/shipment'], false];
+            yield "shipment $action allowed with ship" => [$shipment, $action, $newDoc, ['sales/order/actions/ship'], true];
+        }
+
+        yield 'shipment tracking still allowed to shipment grid' => [$shipment, 'addTrack', $existingShipment, ['sales/shipment'], true];
+        yield 'shipment label still allowed to shipment grid' => [$shipment, 'createLabel', $existingShipment, ['sales/shipment'], true];
+        yield 'shipment email still allowed to shipment grid' => [$shipment, 'email', $existingShipment, ['sales/shipment'], true];
+        yield 'shipment tracking on a new shipment denied to shipment grid' => [$shipment, 'addTrack', $newDoc, ['sales/shipment'], false];
+        yield 'shipment label on a new shipment denied to shipment grid' => [$shipment, 'createLabel', $newDoc, ['sales/shipment'], false];
+        yield 'shipment label on a new shipment allowed with ship' => [$shipment, 'createLabel', $newDoc, ['sales/order/actions/ship'], true];
+
+        $creditmemo = Mage_Adminhtml_Sales_Order_CreditmemoController::class;
+        $existingCreditmemo = ['creditmemo_id' => '7'];
+        foreach (['start', 'new', 'updateQty', 'save'] as $action) {
+            yield "credit memo $action denied to credit memo grid" => [$creditmemo, $action, $newDoc, ['sales/creditmemo'], false];
+            yield "credit memo $action allowed with order credit memos" => [$creditmemo, $action, $newDoc, ['sales/order/actions/creditmemo'], true];
+        }
+
+        yield 'credit memo from an invoice denied to credit memo grid' => [$creditmemo, 'new', ['order_id' => '5', 'invoice_id' => '6'], ['sales/creditmemo', 'sales/invoice'], false];
+        yield 'credit memo view still allowed to credit memo grid' => [$creditmemo, 'view', $existingCreditmemo, ['sales/creditmemo'], true];
+        yield 'credit memo cancel still allowed to credit memo grid' => [$creditmemo, 'cancel', $existingCreditmemo, ['sales/creditmemo'], true];
+        yield 'credit memo view denied to order credit memos alone' => [$creditmemo, 'view', $existingCreditmemo, ['sales/order/actions/creditmemo'], false];
     }
 
     /**
@@ -197,5 +245,20 @@ trait ActionAclTrait
         yield 'renaming a product class denied to customer classes' => [['class_id' => '2'], 'PRODUCT', $customer, false];
         yield 'editing a customer class allowed with customer classes' => [['class_type' => 'CUSTOMER', 'class_id' => '3'], 'CUSTOMER', $customer, true];
         yield 'either type allowed with both' => [['class_type' => 'PRODUCT', 'class_id' => '3'], 'CUSTOMER', [...$customer, ...$product], true];
+    }
+
+    /**
+     * Resources, posted invoice options that must survive.
+     *
+     * @return Generator<string, array<mixed>>
+     */
+    public static function provideInvoiceSaveOptionsData(): Generator
+    {
+        $invoice = ['sales/order/actions/invoice'];
+
+        yield 'invoice only drops capture and shipment' => [$invoice, ['comment_text']];
+        yield 'capture keeps the capture choice' => [[...$invoice, 'sales/order/actions/capture'], ['capture_case', 'comment_text']];
+        yield 'ship keeps the shipment option' => [[...$invoice, 'sales/order/actions/ship'], ['do_shipment', 'comment_text']];
+        yield 'all three keep both' => [[...$invoice, 'sales/order/actions/capture', 'sales/order/actions/ship'], ['capture_case', 'do_shipment', 'comment_text']];
     }
 }

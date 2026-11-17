@@ -788,4 +788,25 @@ class Mage_Adminhtml_Sales_Order_ShipmentController extends Mage_Adminhtml_Contr
                 ->toHtml(),
         );
     }
+
+    /**
+     * Creating a shipment needs the Ship order action that shows the Ship button
+     *
+     * Without a shipment id the actions prepare a new shipment from the order (adding a
+     * tracking number or a label to it saves it), which is creating one. Tracking, labels,
+     * comments, emails and printing for an existing shipment keep the Shipments permission.
+     */
+    #[Override]
+    protected function _isAllowed(): bool
+    {
+        $request = $this->getRequest();
+        $action = strtolower($request->getActionName());
+        if (in_array($action, ['start', 'new', 'save'], true)
+            || ((int) $request->getParam('shipment_id') === 0 && (int) $request->getParam('order_id') > 0)
+        ) {
+            return Mage::getSingleton('admin/session')->isAllowed('sales/order/actions/ship');
+        }
+
+        return parent::_isAllowed();
+    }
 }

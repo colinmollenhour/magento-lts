@@ -457,4 +457,25 @@ class Mage_Adminhtml_Sales_Order_CreditmemoController extends Mage_Adminhtml_Con
         $this->_initCreditmemo();
         parent::printAction();
     }
+
+    /**
+     * Creating a credit memo needs the Credit Memos order action that shows its button
+     *
+     * Without a credit memo id the actions prepare a new credit memo from the order, which is
+     * creating one. Viewing, printing, cancelling, voiding and commenting on an existing credit
+     * memo keep the Credit Memos grid permission.
+     */
+    #[Override]
+    protected function _isAllowed(): bool
+    {
+        $request = $this->getRequest();
+        $action = strtolower($request->getActionName());
+        if (in_array($action, ['start', 'new', 'updateqty', 'save'], true)
+            || ((int) $request->getParam('creditmemo_id') === 0 && (int) $request->getParam('order_id') > 0)
+        ) {
+            return Mage::getSingleton('admin/session')->isAllowed('sales/order/actions/creditmemo');
+        }
+
+        return parent::_isAllowed();
+    }
 }

@@ -220,7 +220,7 @@ class Mage_Adminhtml_Sales_Order_InvoiceController extends Mage_Adminhtml_Contro
      */
     public function saveAction()
     {
-        $data = $this->getRequest()->getPost('invoice');
+        $data = $this->_filterInvoiceData((array) $this->getRequest()->getPost('invoice'));
         $orderId = $this->getRequest()->getParam('order_id');
 
         if (!empty($data['comment_text'])) {
@@ -504,5 +504,54 @@ class Mage_Adminhtml_Sales_Order_InvoiceController extends Mage_Adminhtml_Contro
     {
         $this->_initInvoice();
         parent::printAction();
+    }
+
+    /**
+     * Creating, capturing and cancelling an invoice need the order action that shows its button
+     *
+     * Without an invoice id the actions prepare a new invoice from the order, which is creating one.
+     * Viewing, printing and commenting on an existing invoice keep the Invoices permission.
+     */
+    #[Override]
+    protected function _isAllowed(): bool
+    {
+        $session = Mage::getSingleton('admin/session');
+        $request = $this->getRequest();
+        $aclResource = match (strtolower($request->getActionName())) {
+            'start', 'new', 'updateqty', 'save' => 'sales/order/actions/invoice',
+            'capture' => 'sales/order/actions/capture',
+            'cancel' => 'sales/order/actions/cancel',
+            default => self::ADMIN_RESOURCE,
+        };
+        if ((int) $request->getParam('invoice_id') === 0 && (int) $request->getParam('order_id') > 0
+            && !$session->isAllowed('sales/order/actions/invoice')
+        ) {
+            return false;
+        }
+
+        return $session->isAllowed($aclResource);
+    }
+
+    /**
+     * Remove the invoice options the current admin may not use
+     *
+     * The invoice form offers the capture choice only to the Capture permission and the
+     * Create Shipment option only to the Ship permission.
+     *
+     * @param  array<string, mixed> $data posted invoice data
+     * @return array<string, mixed>
+     */
+    protected function _filterInvoiceData(array $data): array
+    {
+        $session = Mage::getSingleton('admin/session');
+        if (!$session->isAllowed('sales/order/actions/capture')) {
+            unset($data['capture_case']);
+        }
+
+        if (!$session->isAllowed('sales/order/actions/ship')) {
+            unset($data['do_shipment']);
+        }
+
+        return $data;
     }
 }

@@ -18,6 +18,7 @@ use Mage_Admin_Model_User;
 use Mage_Adminhtml_Controller_Action;
 use Mage_Adminhtml_Sales_Order_CreateController;
 use Mage_Adminhtml_Sales_Order_EditController;
+use Mage_Adminhtml_Sales_Order_InvoiceController;
 use Mage_Adminhtml_TagController;
 use Mage_Adminhtml_Tax_ClassController;
 use Mage_Core_Controller_Request_Http;
@@ -103,6 +104,25 @@ final class ActionAclTest extends OpenMageTest
         $controller->method('_getSession')->willReturn(new Varien_Object());
 
         self::assertSame($expected, $this->isAllowed($controller));
+    }
+
+    /**
+     * The invoice form offers online capture and Create Shipment only to the matching permission.
+     *
+     * @dataProvider provideInvoiceSaveOptionsData
+     * @param string[] $granted
+     * @param string[] $expectedKeys
+     * @group Controller
+     */
+    public function testInvoiceSaveOptions(array $granted, array $expectedKeys): void
+    {
+        $this->loginWithRole($granted);
+        $controller = $this->createController(Mage_Adminhtml_Sales_Order_InvoiceController::class, 'save', [], []);
+        $data = ['capture_case' => 'online', 'do_shipment' => '1', 'comment_text' => 'note'];
+
+        $filtered = (new ReflectionMethod($controller, '_filterInvoiceData'))->invoke($controller, $data);
+
+        self::assertSame($expectedKeys, array_keys($filtered));
     }
 
     /**
