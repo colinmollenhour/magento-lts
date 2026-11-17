@@ -90,18 +90,20 @@ final class ActionAclTest extends OpenMageTest
     }
 
     /**
-     * Editing an order is gated on Edit alone, as it was before the parent
-     * controller's action map started deciding it.
+     * Editing an order is gated on Edit alone, but only while an edit is in progress:
+     * without one the inherited quote steps create an order and need Create or Reorder.
      *
      * @dataProvider provideOrderEditAclData
-     * @param string[] $granted
+     * @param array<string, mixed>  $sessionData
+     * @param array<string, string> $params
+     * @param string[]              $granted
      * @group Controller
      */
-    public function testOrderEditAcl(string $action, array $granted, bool $expected): void
+    public function testOrderEditAcl(string $action, array $sessionData, array $params, array $granted, bool $expected): void
     {
         $this->loginWithRole($granted);
-        $controller = $this->createController(Mage_Adminhtml_Sales_Order_EditController::class, $action, [], ['_getSession']);
-        $controller->method('_getSession')->willReturn(new Varien_Object());
+        $controller = $this->createController(Mage_Adminhtml_Sales_Order_EditController::class, $action, $params, ['_getSession']);
+        $controller->method('_getSession')->willReturn(new Varien_Object($sessionData));
 
         self::assertSame($expected, $this->isAllowed($controller));
     }

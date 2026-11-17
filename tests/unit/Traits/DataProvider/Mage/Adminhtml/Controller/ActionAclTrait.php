@@ -189,16 +189,37 @@ trait ActionAclTrait
     }
 
     /**
-     * Action, resources, expected result.
+     * Action, session quote data, request params, resources, expected result.
      *
      * @return Generator<string, array<mixed>>
      */
     public static function provideOrderEditAclData(): Generator
     {
-        foreach (['start', 'index', 'loadBlock', 'save', 'cancel'] as $action) {
-            yield "$action denied to create" => [$action, ['sales/order/actions/create'], false];
-            yield "$action allowed with edit" => [$action, ['sales/order/actions/edit'], true];
+        $edit = ['sales/order/actions/edit'];
+        $create = ['sales/order/actions/create'];
+        $editing = ['order_id' => 12, 'customer_id' => 3, 'store_id' => 1];
+        $reordering = ['reordered' => 12, 'customer_id' => 3, 'store_id' => 1];
+        $sameOrder = ['customer_id' => '3', 'store_id' => '1'];
+
+        foreach (['start', 'cancel'] as $action) {
+            yield "$action denied to create" => [$action, [], [], $create, false];
+            yield "$action allowed with edit" => [$action, [], [], $edit, true];
         }
+
+        foreach (['index', 'loadBlock', 'processData', 'addConfigured', 'configureProductToAdd', 'configureQuoteItems', 'showUpdateResult', 'save'] as $action) {
+            yield "$action during an edit allowed with edit" => [$action, $editing, $sameOrder, $edit, true];
+            yield "$action during an edit denied to create" => [$action, $editing, $sameOrder, $create, false];
+            yield "$action without an edit denied to edit" => [$action, [], [], $edit, false];
+            yield "$action without an edit allowed with create" => [$action, [], [], $create, true];
+            yield "$action during a reorder denied to edit" => [$action, $reordering, [], $edit, false];
+        }
+
+        yield 'reorder denied to edit' => ['reorder', [], ['order_id' => '12'], $edit, false];
+        yield 'reorder denied to reorder' => ['reorder', [], ['order_id' => '12'], ['sales/order/actions/reorder'], false];
+        yield 'edit of a guest order allowed with edit' => ['loadBlock', ['order_id' => 12, 'customer_id' => false, 'store_id' => 1], ['store_id' => '1'], $edit, true];
+        yield 'switching the customer of an edit denied to edit' => ['index', $editing, ['customer_id' => '4'], $edit, false];
+        yield 'switching the store of an edit denied to edit' => ['loadBlock', $editing, ['customer_id' => '3', 'store_id' => '2'], $edit, false];
+        yield 'switching the customer of an edit denied to edit and create' => ['save', $editing, ['customer_id' => '4'], [...$edit, ...$create], false];
     }
 
     /**

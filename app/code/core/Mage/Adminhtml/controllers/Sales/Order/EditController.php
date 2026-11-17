@@ -71,14 +71,59 @@ class Mage_Adminhtml_Sales_Order_EditController extends Mage_Adminhtml_Sales_Ord
     }
 
     /**
-     * Every step of editing an order requires the Edit permission
+     * Starting, cancelling and continuing an order edit require the Edit permission
      *
-     * The parent controller maps its actions to the Create and Reorder permissions instead,
-     * so it must not decide access for this controller.
+     * The quote-building actions inherited from the create controller count as editing only
+     * while an edit started by startAction() is in progress. Without one they create an order,
+     * which the parent's map decides, so an Edit-only role cannot create orders here.
+     * Reordering belongs to the create controller.
      */
     #[Override]
     protected function _isAllowed(): bool
     {
-        return Mage::getSingleton('admin/session')->isAllowed(self::ADMIN_RESOURCE);
+        $action = strtolower($this->getRequest()->getActionName());
+        if ($action === 'reorder') {
+            return false;
+        }
+
+        if (in_array($action, ['start', 'cancel'], true)) {
+            return Mage::getSingleton('admin/session')->isAllowed(self::ADMIN_RESOURCE);
+        }
+
+        if ($this->_isOrderEditInProgress()) {
+            return $this->_isRequestForEditedOrder()
+                && Mage::getSingleton('admin/session')->isAllowed(self::ADMIN_RESOURCE);
+        }
+
+        return parent::_isAllowed();
+    }
+
+    /**
+     * Whether the session quote holds an order edit (not a new order or a reorder)
+     */
+    protected function _isOrderEditInProgress(): bool
+    {
+        $session = $this->_getSession();
+        return (int) $session->getOrderId() !== 0 && (int) $session->getReordered() === 0;
+    }
+
+    /**
+     * Whether the request keeps the customer and store of the order being edited
+     *
+     * The edit form posts the customer and store the edit was started with. A request naming
+     * another one would move the edited order to that customer or store.
+     */
+    protected function _isRequestForEditedOrder(): bool
+    {
+        $session = $this->_getSession();
+        $request = $this->getRequest();
+        foreach (['customer_id' => (int) $session->getCustomerId(), 'store_id' => (int) $session->getStoreId()] as $param => $current) {
+            $requested = $request->getParam($param);
+            if ($requested !== null && $requested !== '' && (int) $requested !== $current) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
