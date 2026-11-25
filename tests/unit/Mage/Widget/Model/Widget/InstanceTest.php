@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace OpenMage\Tests\Unit\Mage\Widget\Model\Widget;
 
+use Generator;
 use Mage;
 use Mage_Core_Exception;
 use Mage_Core_Model_Logger;
@@ -277,6 +278,107 @@ final class InstanceTest extends OpenMageTest
         self::assertNull($subject->validatePageGroup(['all_pages' => $data]));
         self::assertNull($subject->validatePageGroup(['page_group' => 'all_pages']));
         self::assertSame($data, $subject->validatePageGroup(['page_group' => 'all_pages', 'all_pages' => $data]));
+    }
+
+    /**
+     * @dataProvider provideEntityIdsData
+     * @group Model
+     */
+    public function testNormalizeEntityIds(mixed $entities, ?string $expected): void
+    {
+        self::assertSame($expected, $this->createSubject(self::DECLARED_TYPE)->normalizeEntityIds($entities));
+    }
+
+    /**
+     * @return Generator<string, array{mixed, null|string}>
+     */
+    public static function provideEntityIdsData(): Generator
+    {
+        yield 'single id' => ['12', '12'];
+        yield 'list posted by the chooser' => ['12,7,1033', '12,7,1033'];
+        yield 'whitespace around ids' => [' 12 , 7 ,1033 ', '12,7,1033'];
+        yield 'integer' => [12, '12'];
+        yield 'empty string' => ['', ''];
+        yield 'whitespace only' => ['  ', ''];
+        yield 'markup' => ['1"><img src=x onerror=alert(1)>', null];
+        yield 'quote after id' => ['1"', null];
+        yield 'trailing comma' => ['1,2,', null];
+        yield 'empty item' => ['1,,2', null];
+        yield 'negative id' => ['-1', null];
+        yield 'decimal id' => ['1.5', null];
+        yield 'trailing newline only after an id' => ["1\nx", null];
+        yield 'negative integer' => [-1, null];
+        yield 'array' => [['1'], null];
+        yield 'null' => [null, null];
+    }
+
+    /**
+     * @dataProvider provideInvalidEntitiesData
+     * @group Model
+     */
+    public function testSpecificPageGroupWithInvalidEntitiesIsRejected(mixed $entities): void
+    {
+        $subject = $this->createSubject(self::DECLARED_TYPE);
+        $subject->setPageGroups([$this->createSpecificProductsPageGroup($entities)]);
+
+        $this->expectException(Mage_Core_Exception::class);
+        $this->expectExceptionMessage('Wrong widget display option specified.');
+        $this->beforeSave($subject);
+    }
+
+    /**
+     * @return Generator<string, array{mixed}>
+     */
+    public static function provideInvalidEntitiesData(): Generator
+    {
+        yield 'markup' => ['1"><img src=x onerror=alert(1)>'];
+        yield 'quote' => ['1"'];
+        yield 'array' => [['1']];
+    }
+
+    /**
+     * The controller pre-check and _beforeSave() share validatePageGroup(), which returns the normalised ids.
+     *
+     * @group Model
+     */
+    public function testValidatePageGroupNormalizesEntities(): void
+    {
+        $subject = $this->createSubject(self::DECLARED_TYPE);
+        $pageGroup = $this->createSpecificProductsPageGroup(' 5, 6 ');
+
+        self::assertSame('5,6', $subject->validatePageGroup($pageGroup)['entities'] ?? null);
+    }
+
+    /**
+     * @group Model
+     */
+    public function testSpecificPageGroupStoresNormalizedEntities(): void
+    {
+        $subject = $this->createSubject(self::DECLARED_TYPE);
+        $subject->setPageGroups([$this->createSpecificProductsPageGroup(' 5, 6 ')]);
+
+        $this->beforeSave($subject);
+
+        $pageGroups = $subject->getData('page_groups');
+        self::assertSame('5,6', $pageGroups[0]['entities']);
+        self::assertSame(['PRODUCT_5', 'PRODUCT_6'], $pageGroups[0]['layout_handle_updates']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function createSpecificProductsPageGroup(mixed $entities): array
+    {
+        return [
+            'page_group'   => 'all_products',
+            'all_products' => [
+                'page_id'  => 0,
+                'for'      => 'specific',
+                'entities' => $entities,
+                'block'    => 'content',
+                'template' => '',
+            ],
+        ];
     }
 
     private function createSubject(string $type): Subject

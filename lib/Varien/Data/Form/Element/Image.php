@@ -38,16 +38,18 @@ class Varien_Data_Form_Element_Image extends Varien_Data_Form_Element_Abstract
         $html = '';
 
         if ((string) $this->getValue()) {
-            $url = $this->_getUrl();
+            $url = (string) $this->_getUrl();
 
-            if (!preg_match('/^http\:\/\/|https\:\/\//', $url)) {
+            if (!preg_match('/^https?:\/\//', $url)) {
                 $url = Mage::getBaseUrl('media') . $url;
             }
 
+            $url = $this->_escape($url);
+            $value = $this->_escape($this->getValue());
             $html = '<a href="' . $url . '"'
                 . ' onclick="imagePreview(\'' . $this->getHtmlId() . '_image\'); return false;">'
-                . '<img src="' . $url . '" id="' . $this->getHtmlId() . '_image" title="' . $this->getValue() . '"'
-                . ' alt="' . $this->getValue() . '" height="22" width="22" class="small-image-preview v-middle" />'
+                . '<img src="' . $url . '" id="' . $this->getHtmlId() . '_image" title="' . $value . '"'
+                . ' alt="' . $value . '" height="22" width="22" class="small-image-preview v-middle" />'
                 . '</a> ';
         }
 
@@ -88,7 +90,7 @@ class Varien_Data_Form_Element_Image extends Varien_Data_Form_Element_Abstract
      */
     protected function _getHiddenInput()
     {
-        return '<input type="hidden" name="' . parent::getName() . '[value]" value="' . $this->getValue() . '" />';
+        return '<input type="hidden" name="' . parent::getName() . '[value]" value="' . $this->_escape($this->getValue()) . '" />';
     }
 
     /**

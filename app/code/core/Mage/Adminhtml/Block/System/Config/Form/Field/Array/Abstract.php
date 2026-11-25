@@ -126,10 +126,15 @@ abstract class Mage_Adminhtml_Block_System_Config_Form_Field_Array_Abstract exte
         $element = $this->getElement();
         if ($element->getValue() && is_array($element->getValue())) {
             foreach ($element->getValue() as $rowId => $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+
                 foreach ($row as $key => $value) {
                     $row[$key] = $this->escapeHtml($value);
                 }
 
+                $rowId = $this->_getSafeRowId($rowId);
                 $row['_id'] = $rowId;
                 $result[$rowId] = new Varien_Object($row);
                 $this->_prepareArrayRow($result[$rowId]);
@@ -138,6 +143,23 @@ abstract class Mage_Adminhtml_Block_System_Config_Form_Field_Array_Abstract exte
 
         $this->_arrayRowsCache = $result;
         return $this->_arrayRowsCache;
+    }
+
+    /**
+     * Return a row id that is safe to use as an HTML id and inside JavaScript strings
+     *
+     * The row id is the key of the stored row. The template uses it as an element id, in an
+     * inline onclick handler and in a script block, where escaping for one context does not
+     * protect the others. A key that is not a plain identifier (letters, digits, "_" and "-",
+     * which covers every id the form itself creates) is replaced with an id derived from it.
+     * Row keys carry no meaning, so the form simply posts the rows back under the new ids.
+     *
+     * @param  int|string $rowId
+     * @return string
+     */
+    protected function _getSafeRowId($rowId)
+    {
+        return Mage_Adminhtml_Model_System_Config_Backend_Serialized_Array::getSafeRowKey($rowId);
     }
 
     /**

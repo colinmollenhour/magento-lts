@@ -75,7 +75,7 @@ class Varien_Data_Form_Element_Multiselect extends Varien_Data_Form_Element_Abst
         if ($values = $this->getValues()) {
             foreach ($values as $option) {
                 if (is_array($option['value'])) {
-                    $html .= '<optgroup label="' . $option['label'] . '">' . "\n";
+                    $html .= '<optgroup label="' . $this->_escapeAttribute($option['label']) . '">' . "\n";
                     foreach ($option['value'] as $groupItem) {
                         $html .= $this->_optionToHtml($groupItem, $value);
                     }
@@ -158,7 +158,7 @@ class Varien_Data_Form_Element_Multiselect extends Varien_Data_Form_Element_Abst
     {
         $html = '<option value="' . $this->_escape($option['value']) . '"';
         $html .= isset($option['title']) ? 'title="' . $this->_escape($option['title']) . '"' : '';
-        $html .= isset($option['style']) ? 'style="' . $option['style'] . '"' : '';
+        $html .= isset($option['style']) ? 'style="' . $this->_escapeAttribute($option['style']) . '"' : '';
         if (in_array((string) $option['value'], $selected)) {
             $html .= ' selected="selected"';
         }

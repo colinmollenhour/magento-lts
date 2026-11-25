@@ -277,6 +277,9 @@ class Mage_Widget_Block_Adminhtml_Widget_Instance_Edit_Tab_Main_Layout extends M
     /**
      * Prepare and retrieve page groups data of widget instance
      *
+     * The page id and the entity ids are inserted into the page group template as HTML,
+     * so they are cast and escaped here, which also covers values stored before they were validated.
+     *
      * @return array
      */
     public function getPageGroups()
@@ -286,12 +289,12 @@ class Mage_Widget_Block_Adminhtml_Widget_Instance_Edit_Tab_Main_Layout extends M
         if ($widgetInstance->getPageGroups()) {
             foreach ($widgetInstance->getPageGroups() as $pageGroup) {
                 $pageGroups[] = [
-                    'page_id' => $pageGroup['page_id'],
+                    'page_id' => (int) $pageGroup['page_id'],
                     'group' => $pageGroup['page_group'],
                     'block' => $pageGroup['block_reference'],
                     'for_value'   => $pageGroup['page_for'],
                     'layout_handle' => $pageGroup['layout_handle'],
-                    $pageGroup['page_group'] . '_entities' => $pageGroup['entities'],
+                    $pageGroup['page_group'] . '_entities' => $this->escapeHtml((string) $pageGroup['entities']),
                     'template' => $pageGroup['page_template'],
                 ];
             }

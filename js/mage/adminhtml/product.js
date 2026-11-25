@@ -659,6 +659,30 @@ Product.Configurable.prototype = {
         this.updateSaveInput();
         this.updateSimpleForm();
     },
+    /**
+     * Return a copy of the template variables with every string HTML-escaped.
+     * Option labels can hold any markup that "Allow HTML Tags on Frontend" lets through, and they come
+     * unescaped from several server responses, while the template output is inserted as HTML. Only the
+     * copy is escaped: the value objects are posted back on save and must keep the raw values.
+     */
+    escapeTemplateVariables: function (variables) {
+        var escaped = $H({});
+        variables.each(function (pair) {
+            escaped.set(pair.key, typeof pair.value === 'string' ? this.escapeHtml(pair.value) : pair.value);
+        }.bind(this));
+        return escaped;
+    },
+    /**
+     * Escape a string for use as HTML text or as a quoted attribute value
+     */
+    escapeHtml: function (value) {
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
     createValueRow: function (container, value) {
         var templateVariables = $H({});
         if (!this.valueAutoIndex) {
@@ -679,7 +703,7 @@ Product.Configurable.prototype = {
         var li = $(document.createElement('LI'));
         li.className = 'attribute-value';
         li.id = templateVariables.get('html_id');
-        li.update(this.addValueTemplate.evaluate(templateVariables));
+        li.update(this.addValueTemplate.evaluate(this.escapeTemplateVariables(templateVariables)));
         li.valueObject = value;
         if (typeof li.valueObject.is_percent == 'undefined') {
             li.valueObject.is_percent = 0;

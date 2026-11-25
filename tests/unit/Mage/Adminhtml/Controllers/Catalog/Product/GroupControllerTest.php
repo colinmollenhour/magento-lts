@@ -76,5 +76,9 @@ final class GroupControllerTest extends OpenMageTest
         yield 'category set refused' => ['3', 'Shoe sizes', null];
         yield 'missing set refused' => ['99', 'Shoe sizes', null];
         yield 'no set refused' => ['', 'Shoe sizes', null];
+        yield 'attribute breakout stripped of quotes' => ['9', 'General" onmouseover="alert(1)', 'General onmouseover=alert(1)'];
+        yield 'single quoted breakout stripped of quotes' => ['9', "General' onfocus='alert(1)", 'General onfocus=alert(1)'];
+        yield 'tags stripped' => ['9', '<img src=x onerror=alert(1)>Meta <b>Info</b>', 'Meta Info'];
+        yield 'quotes only refused' => ['9', '"\'"', null];
     }
 }

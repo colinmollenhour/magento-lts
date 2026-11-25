@@ -114,7 +114,7 @@
                             id="qinput-<?php echo $_item->getId(); ?>"
                             data-link="<?php echo $this->getAjaxUpdateUrl() ?>"
                             data-item-id="<?php echo $_item->getId(); ?>"
-                            data-cart-item-id="<?php echo $_item->getSku(); ?>"
+                            data-cart-item-id="<?php echo $this->escapeHtml($_item->getSku()) ?>"
                             class="qty cart-item-quantity input-text" name=""
                             value="<?php echo $this->getQty()?>"
                             <?php if ($this->isOnCheckoutPage()) echo 'disabled'; ?>

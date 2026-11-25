@@ -191,7 +191,7 @@ $_deleteUrl = $this->getDeleteUrlCustom(false);
 <td class="a-center">
     <input name="cart[<?php echo $_item->getId() ?>][qty]" value="<?php echo $this->getQty() ?>" size="4"
            title="<?php echo Mage::helper('core')->quoteEscape($this->__('Qty')) ?>" class="input-text qty"
-           data-cart-item-id="<?php echo $this->jsQuoteEscape($_item->getSku()) ?>" maxlength="12"/>
+           data-cart-item-id="<?php echo $this->escapeHtml($_item->getSku()) ?>" maxlength="12"/>
 </td>
 <?php if (($this->helper('tax')->displayCartPriceExclTax() || $this->helper('tax')->displayCartBothPrices()) && !$_item->getNoSubtotal()): ?>
     <td class="a-right">

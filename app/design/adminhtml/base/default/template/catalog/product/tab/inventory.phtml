@@ -27,7 +27,7 @@
                 <option value="1"><?php echo Mage::helper('catalog')->__('Yes') ?></option>
                 <option value="0"<?php if ($this->getConfigFieldValue('manage_stock') == 0): ?> selected="selected"<?php endif ?>><?php echo Mage::helper('catalog')->__('No') ?></option>
             </select>
-            <input type="hidden" id="inventory_manage_stock_default" value="<?php echo $this->getDefaultConfigValue('manage_stock'); ?>" />
+            <input type="hidden" id="inventory_manage_stock_default" value="<?php echo $this->escapeHtml($this->getDefaultConfigValue('manage_stock')); ?>" />
 
             <?php $_checked = ($this->getFieldValue('use_config_manage_stock') || $this->isNew()) ? 'checked="checked"' : '' ?>
             <input type="checkbox" id="inventory_use_config_manage_stock" name="<?php echo $this->getFieldSuffix() ?>[stock_data][use_config_manage_stock]" value="1" <?php echo $_checked ?> onclick="toggleValueElements(this, this.parentNode);" class="checkbox" <?php echo $_readonly;?>/>
@@ -138,7 +138,7 @@
                 <option value="1"><?php echo Mage::helper('catalog')->__('Yes') ?></option>
                 <option value="0"<?php if ($this->getConfigFieldValue('enable_qty_increments') == 0): ?> selected="selected"<?php endif ?>><?php echo Mage::helper('catalog')->__('No') ?></option>
             </select>
-            <input type="hidden" id="inventory_enable_qty_increments_default" value="<?php echo $this->getDefaultConfigValue('enable_qty_increments'); ?>" />
+            <input type="hidden" id="inventory_enable_qty_increments_default" value="<?php echo $this->escapeHtml($this->getDefaultConfigValue('enable_qty_increments')); ?>" />
 
             <?php $_checked = ($this->getFieldValue('use_config_enable_qty_increments') || $this->isNew()) ? 'checked="checked"' : '' ?>
             <input type="checkbox" id="inventory_use_config_enable_qty_increments" name="<?php echo $this->getFieldSuffix() ?>[stock_data][use_config_enable_qty_increments]" value="1" <?php echo $_checked ?> onclick="toggleValueElements(this, this.parentNode);" class="checkbox" <?php echo $_readonly;?>/>

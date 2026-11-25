@@ -31,8 +31,17 @@ class Mage_Adminhtml_Catalog_Product_GroupController extends Mage_Adminhtml_Cont
             return;
         }
 
+        // Group names are printed in admin pages, some of them inside HTML attributes: store them
+        // without tags or quotes, as the product attribute set API does
+        $name = $this->getRequest()->getParam('attribute_group_name');
+        $name = is_scalar($name) ? trim(str_replace(['"', "'", '`'], '', Mage::helper('catalog')->stripTags((string) $name))) : '';
+        if ($name === '') {
+            $this->_getSession()->addError(Mage::helper('catalog')->__('An error occurred while saving this group.'));
+            return;
+        }
+
         $model = $this->_createGroupModel();
-        $model->setAttributeGroupName($this->getRequest()->getParam('attribute_group_name'))
+        $model->setAttributeGroupName($name)
               ->setAttributeSetId($attributeSetId);
 
         if ($model->itemExists()) {

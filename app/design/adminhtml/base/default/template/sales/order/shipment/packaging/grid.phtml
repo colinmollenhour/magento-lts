@@ -41,10 +41,10 @@
                     <?php endif ?>
                     <tr title="#" id="" class="">
                         <td class="name">
-                            <?php echo $item->getName(); ?>
+                            <?php echo $this->escapeHtml($item->getName()); ?>
                         </td>
                         <td class="a-center weight ">
-                            <?php echo $item->getWeight(); ?>
+                            <?php echo $this->escapeHtml($item->getWeight()); ?>
                         </td>
                         <?php
                             if ($this->displayCustomsValue()) {

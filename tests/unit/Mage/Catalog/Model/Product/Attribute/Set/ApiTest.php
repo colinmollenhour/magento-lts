@@ -74,12 +74,47 @@ final class ApiTest extends OpenMageTest
         yield 'add a group to a missing set' => [static fn(Subject $api): mixed => $api->groupAdd('99', 'General'), 'invalid_attribute_set_id'];
         yield 'remove a group of a category set' => [static fn(Subject $api): mixed => $api->groupRemove('30'), 'invalid_attribute_group_id'];
         yield 'remove a missing group' => [static fn(Subject $api): mixed => $api->groupRemove('99'), 'invalid_attribute_group_id'];
+        yield 'rename a group of a category set' => [static fn(Subject $api): mixed => $api->groupRename('30', 'General'), 'invalid_attribute_group_id'];
+        yield 'rename a missing group' => [static fn(Subject $api): mixed => $api->groupRename('99', 'General'), 'invalid_attribute_group_id'];
+        yield 'rename a group to quotes only' => [static fn(Subject $api): mixed => $api->groupRename('10', '"\'"'), 'invalid_data'];
     }
 
     /**
+     * A renamed group name keeps no tags and no quotes, so it cannot end an HTML attribute it is printed in.
+     *
+     * @dataProvider provideGroupRenameData
+     * @group Model
+     */
+    public function testGroupRename(string $name, string $expected): void
+    {
+        $group = $this->createPartialMock(Mage_Catalog_Model_Product_Attribute_Group::class, ['save']);
+        $group->setIdFieldName('attribute_group_id');
+        $group->setData(['attribute_group_id' => 10, 'attribute_set_id' => 9, 'attribute_group_name' => 'General']);
+        $group->expects(self::once())->method('save')->willReturnSelf();
+
+        $subject = $this->createSubject($group);
+
+        self::assertTrue($subject->groupRename('10', $name));
+        self::assertSame($expected, $group->getAttributeGroupName());
+    }
+
+    /**
+     * @return Generator<string, array<string>>
+     */
+    public static function provideGroupRenameData(): Generator
+    {
+        yield 'plain name' => ['Prices', 'Prices'];
+        yield 'attribute breakout' => ['General" onmouseover="alert(1)', 'General onmouseover=alert(1)'];
+        yield 'single quoted breakout' => ["General' autofocus onfocus='alert(1)", 'General autofocus onfocus=alert(1)'];
+        yield 'tags' => ['<img src=x onerror=alert(1)>Meta <b>Info</b>', 'Meta Info'];
+        yield 'apostrophe' => ["Men's sizes", 'Mens sizes'];
+    }
+
+    /**
+     * @param  null|Mage_Catalog_Model_Product_Attribute_Group $group group 10, if the test needs to inspect it
      * @return MockObject&Subject
      */
-    private function createSubject(): MockObject
+    private function createSubject(?Mage_Catalog_Model_Product_Attribute_Group $group = null): MockObject
     {
         $subject = $this->createPartialMock(Subject::class, [
             '_loadAttributeSet', '_loadAttributeGroup', '_loadAttribute',
@@ -93,9 +128,15 @@ final class ApiTest extends OpenMageTest
             ),
         );
         $subject->method('_loadAttributeGroup')->willReturnCallback(
-            static fn(int $id): Mage_Catalog_Model_Product_Attribute_Group => new Mage_Catalog_Model_Product_Attribute_Group(
-                isset(self::GROUPS[$id]) ? ['attribute_group_id' => $id, 'attribute_set_id' => self::GROUPS[$id], 'attribute_group_name' => 'General'] : [],
-            ),
+            static function (int $id) use ($group): Mage_Catalog_Model_Product_Attribute_Group {
+                if ($id === 10 && $group instanceof Mage_Catalog_Model_Product_Attribute_Group) {
+                    return $group;
+                }
+
+                return new Mage_Catalog_Model_Product_Attribute_Group(
+                    isset(self::GROUPS[$id]) ? ['attribute_group_id' => $id, 'attribute_set_id' => self::GROUPS[$id], 'attribute_group_name' => 'General'] : [],
+                );
+            },
         );
         $subject->method('_loadAttribute')->willReturnCallback(
             static fn(int $id): Mage_Eav_Model_Entity_Attribute => new Mage_Eav_Model_Entity_Attribute(

@@ -357,16 +357,24 @@ class Mage_Adminhtml_Block_Widget_Tabs extends Mage_Adminhtml_Block_Widget
     }
 
     /**
+     * Retrieve the tab title, escaped for use in an HTML attribute
+     *
+     * Tab titles can come from stored data (the category editor uses attribute group names),
+     * so they are escaped here rather than in each template. Existing entities are not encoded
+     * again, so a template that still escapes the result shows the same text.
+     *
      * @param  Mage_Adminhtml_Block_Widget_Tab_Interface|Varien_Object $tab
      * @return string
      */
     public function getTabTitle($tab)
     {
         if ($tab instanceof Mage_Adminhtml_Block_Widget_Tab_Interface) {
-            return $tab->getTabTitle();
+            $title = $tab->getTabTitle();
+        } else {
+            $title = $tab->getTitle();
         }
 
-        return $tab->getTitle();
+        return (string) $this->quoteEscape((string) $title);
     }
 
     /**

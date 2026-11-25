@@ -195,9 +195,7 @@ class Mage_Catalog_Model_Product_Attribute_Set_Api extends Mage_Api_Model_Resour
         /** @var Mage_Eav_Model_Entity_Attribute_Group $group */
         $group = Mage::getModel('eav/entity_attribute_group');
         $group->setAttributeSetId($attributeSet->getId())
-                ->setAttributeGroupName(
-                    Mage::helper('catalog')->stripTags($groupName),
-                );
+                ->setAttributeGroupName($this->_prepareGroupName($groupName));
         if ($group->itemExists()) {
             $this->_fault('group_already_exists');
         }
@@ -220,15 +218,10 @@ class Mage_Catalog_Model_Product_Attribute_Set_Api extends Mage_Api_Model_Resour
      */
     public function groupRename($groupId, $groupName)
     {
-        $model = Mage::getModel('eav/entity_attribute_group')->load($groupId);
+        // check if attribute group with requested id exists in a product attribute set
+        $model = $this->_initProductAttributeGroup($groupId);
 
-        if (!$model->getAttributeGroupName()) {
-            $this->_fault('invalid_attribute_group_id');
-        }
-
-        $model->setAttributeGroupName(
-            Mage::helper('catalog')->stripTags($groupName),
-        );
+        $model->setAttributeGroupName($this->_prepareGroupName($groupName));
         try {
             $model->save();
         } catch (Exception $exception) {
@@ -303,6 +296,30 @@ class Mage_Catalog_Model_Product_Attribute_Set_Api extends Mage_Api_Model_Resour
         $this->_initProductAttributeSet($group->getAttributeSetId(), 'invalid_attribute_group_id');
 
         return $group;
+    }
+
+    /**
+     * Group name to store: without tags or quotes, and not empty
+     *
+     * Group names are printed in admin pages, some of them inside HTML attributes. Without
+     * quotes a stored name cannot end the attribute it is printed in, even where a template
+     * misses the escaping.
+     *
+     * @param  mixed              $groupName
+     * @throws Mage_Api_Exception
+     */
+    protected function _prepareGroupName($groupName): string
+    {
+        if (!is_scalar($groupName)) {
+            $this->_fault('invalid_data');
+        }
+
+        $groupName = trim(str_replace(['"', "'", '`'], '', Mage::helper('catalog')->stripTags((string) $groupName)));
+        if ($groupName === '') {
+            $this->_fault('invalid_data');
+        }
+
+        return $groupName;
     }
 
     /**

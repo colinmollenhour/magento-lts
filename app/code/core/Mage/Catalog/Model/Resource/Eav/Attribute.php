@@ -101,6 +101,7 @@ class Mage_Catalog_Model_Resource_Eav_Attribute extends Mage_Eav_Model_Entity_At
     #[Override]
     protected function _beforeSave()
     {
+        $this->_validateFrontendClass();
         $this->setData('modulePrefix', self::MODULE_NAME);
         if (isset($this->_origData['is_global'])) {
             $this->_data['is_global'] ??= self::SCOPE_GLOBAL;
@@ -121,6 +122,47 @@ class Mage_Catalog_Model_Resource_Eav_Attribute extends Mage_Eav_Model_Entity_At
         }
 
         return parent::_beforeSave();
+    }
+
+    /**
+     * Refuse an input validation class that the attribute form does not offer
+     *
+     * The value is printed as the CSS class of the attribute's input in the product
+     * and category editors. The allowed classes are the ones the attribute form lists:
+     * the defaults and those registered for the entity type under
+     * global/eav_frontendclasses in config.xml. A value that is already stored is kept,
+     * and setup scripts may install any value.
+     *
+     * @return $this
+     * @throws Mage_Core_Exception
+     */
+    protected function _validateFrontendClass()
+    {
+        $frontendClass = $this->getData('frontend_class');
+        if ($frontendClass === null
+            || $frontendClass === ''
+            || $frontendClass === $this->getOrigData('frontend_class')
+            || Mage::app()->getUpdateMode()
+        ) {
+            return $this;
+        }
+
+        /** @var Mage_Eav_Helper_Data $helper */
+        $helper = Mage::helper('eav');
+        $entityTypeCode = null;
+        if ($this->getEntityTypeId() !== null) {
+            $entityTypeCode = $this->getEntityType()->getEntityTypeCode();
+        }
+
+        $entityTypeCode ??= Mage_Catalog_Model_Product::ENTITY;
+        $allowed = array_column($helper->getFrontendClasses($entityTypeCode), 'value');
+        if (!is_string($frontendClass) || !in_array($frontendClass, $allowed, true)) {
+            Mage::throwException(
+                Mage::helper('catalog')->__('The selected input validation is not available for this attribute.'),
+            );
+        }
+
+        return $this;
     }
 
     /**

@@ -209,20 +209,29 @@ abstract class Mage_Core_Helper_Abstract
     /**
      * Remove html tags, but leave "<" and ">" signs
      *
+     * The pass is repeated until the output no longer changes, because decoding the entities after
+     * strip_tags() would otherwise turn entity-encoded markup such as "&lt;img ...&gt;" into tags.
+     * Every pass that changes the string makes it shorter, so the loop ends.
+     *
      * @param  string $html
      * @return string
      */
     public function removeTags($html)
     {
-        $html = preg_replace_callback(
-            "# <(?![/a-z]) | (?<=\s)>(?![a-z]) #xi",
-            function ($matches) {
-                return htmlentities($matches[0]);
-            },
-            $html,
-        );
-        $html =  strip_tags($html);
-        return htmlspecialchars_decode($html);
+        $html = (string) $html;
+        do {
+            $previous = $html;
+            $html = (string) preg_replace_callback(
+                "# <(?![/a-z]) | (?<=\s)>(?![a-z]) #xi",
+                function ($matches) {
+                    return htmlentities($matches[0]);
+                },
+                $html,
+            );
+            $html = htmlspecialchars_decode(strip_tags($html));
+        } while ($html !== $previous);
+
+        return $html;
     }
 
     /**

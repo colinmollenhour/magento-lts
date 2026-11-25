@@ -63,21 +63,21 @@ class Varien_Data_Form_Element_Radios extends Varien_Data_Form_Element_Abstract
     {
         $html = '<input type="radio"' . $this->serialize(['name', 'class', 'style']);
         if (is_array($option)) {
-            $html .= 'value="' . $this->_escape($option['value']) . '"  id="' . $this->getHtmlId() . $option['value'] . '"';
+            $html .= 'value="' . $this->_escape($option['value']) . '"  id="' . $this->getHtmlId() . $this->_escapeAttribute($option['value']) . '"';
             if ($option['value'] == $selected) {
                 $html .= ' checked="checked"';
             }
 
             $html .= ' />';
-            $html .= '<label class="inline" for="' . $this->getHtmlId() . $option['value'] . '">' . $option['label'] . '</label>';
+            $html .= '<label class="inline" for="' . $this->getHtmlId() . $this->_escapeAttribute($option['value']) . '">' . $this->_escape($option['label']) . '</label>';
         } elseif ($option instanceof Varien_Object) {
-            $html .= 'id="' . $this->getHtmlId() . $option->getValue() . '"' . $option->serialize(['label', 'title', 'value', 'class', 'style']);
+            $html .= 'id="' . $this->getHtmlId() . $this->_escapeAttribute($option->getValue()) . '"' . $option->serialize(['label', 'title', 'value', 'class', 'style']);
             if (in_array($option->getValue(), $selected)) {
                 $html .= ' checked="checked"';
             }
 
             $html .= ' />';
-            $html .= '<label class="inline" for="' . $this->getHtmlId() . $option->getValue() . '">' . $option->getLabel() . '</label>';
+            $html .= '<label class="inline" for="' . $this->getHtmlId() . $this->_escapeAttribute($option->getValue()) . '">' . $this->_escape($option->getLabel()) . '</label>';
         }
 
         return $html . ($this->getSeparator() . "\n");
