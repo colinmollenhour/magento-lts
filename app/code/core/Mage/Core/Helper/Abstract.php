@@ -293,10 +293,14 @@ abstract class Mage_Core_Helper_Abstract
     }
 
     /**
-     * Escape quotes in java script
+     * Escape a value for use inside a JavaScript string literal delimited by $quote
+     *
+     * Escapes backslashes, the quote, CR, LF, U+2028, U+2029, "</" and "<!--", so the value can end neither
+     * the string literal nor the surrounding script element. A backslash directly followed by "n", "r" or "t"
+     * is kept, so translations can still use those escape sequences for line breaks and tabs.
      *
      * @param  string|string[]                      $data
-     * @param  string                               $quote
+     * @param  string                               $quote the quote character that delimits the string literal
      * @return ($data is array ? string[] : string)
      */
     public function jsQuoteEscape($data, $quote = "'")
@@ -304,13 +308,41 @@ abstract class Mage_Core_Helper_Abstract
         if (is_array($data)) {
             $result = [];
             foreach ($data as $item) {
-                $result[] = str_replace($quote, '\\' . $quote, $item);
+                $result[] = $this->escapeJsStringLiteral((string) $item, (string) $quote);
             }
 
             return $result;
         }
 
-        return str_replace($quote, '\\' . $quote, $data);
+        return $this->escapeJsStringLiteral((string) $data, (string) $quote);
+    }
+
+    /**
+     * @see jsQuoteEscape()
+     */
+    private function escapeJsStringLiteral(string $data, string $quote): string
+    {
+        // No /u modifier: U+2028 and U+2029 are matched as bytes, so a value with invalid UTF-8 is still escaped
+        // (with /u, preg_replace_callback() would return null for it).
+        $pattern = '#\\\\(?![nrt])|\r|\n|\xE2\x80\xA8|\xE2\x80\xA9|</|<!--';
+        if ($quote !== '' && $quote !== '\\') {
+            $pattern .= '|' . preg_quote($quote, '#');
+        }
+
+        return (string) preg_replace_callback(
+            $pattern . '#',
+            static fn(array $match): string => match ($match[0]) {
+                '\\' => '\\\\',
+                "\r" => '\r',
+                "\n" => '\n',
+                "\u{2028}" => '\u2028',
+                "\u{2029}" => '\u2029',
+                '</' => '<\/',
+                '<!--' => '\u003C!--',
+                default => '\\' . $match[0],
+            },
+            $data,
+        );
     }
 
     /**

@@ -530,7 +530,7 @@ AdminOrder.prototype = {
                         }
                         // calc and set product price
                         var productPrice = parseFloat(this._calcProductPrice() + this.productPriceBase[productId]);
-                        priceColl.innerHTML = this.currencySymbol + productPrice.toFixed(2);
+                        priceColl.textContent = this.currencySymbol + productPrice.toFixed(2);
                         // and set checkbox checked
                         grid.setCheckboxChecked(checkbox, true);
                     }.bind(this));
