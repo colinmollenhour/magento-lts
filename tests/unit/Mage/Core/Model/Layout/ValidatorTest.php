@@ -13,7 +13,9 @@ namespace OpenMage\Tests\Unit\Mage\Core\Model\Layout;
 
 use Generator;
 use Mage;
+use Mage_Core_Helper_Abstract;
 use OpenMage\Tests\Unit\OpenMageTest;
+use Override;
 use OpenMage\Tests\Unit\Traits\DataProvider\Base\UrlTrait;
 
 final class ValidatorTest extends OpenMageTest
@@ -325,6 +327,168 @@ final class ValidatorTest extends OpenMageTest
             true,
             '<reference name="content"><block type="core/text" name="adminhtml_grid"/></reference>',
             [],
+        ];
+
+        $disallowedBlock = ['invalidBlockName' => 'Disallowed block name for frontend.'];
+        $tabs = '<reference name="content"><block type="catalog/product_view_tabs" name="t">'
+            . '<action method="addTab"><alias>g</alias><title>x</title><block>%s</block><template>widget/grid.phtml</template></action>'
+            . '</block></reference>';
+
+        yield 'admin grid alias as an addTab argument' => [false, sprintf($tabs, 'adminhtml/permissions_user_grid'), $disallowedBlock];
+        yield 'admin grid alias with a capitalised module as an addTab argument' => [false, sprintf($tabs, 'Adminhtml/customer_grid'), $disallowedBlock];
+        yield 'admin grid alias with surrounding white space as an addTab argument' => [false, sprintf($tabs, " adminhtml/sales_order_grid\n"), $disallowedBlock];
+        yield 'admin grid alias with an extra path part as an addTab argument' => [false, sprintf($tabs, 'adminhtml/customer_grid/x'), $disallowedBlock];
+        yield 'admin grid class name as an addTab argument' => [false, sprintf($tabs, '\\mage_adminhtml_block_customer_grid'), $disallowedBlock];
+        yield 'admin block of another module as an addTab argument' => [false, sprintf($tabs, 'sales/adminhtml_recurring_profile_grid'), $disallowedBlock];
+        yield 'block extending an admin block base class as an addTab argument' => [false, sprintf($tabs, 'weee/renderer_weee_tax'), $disallowedBlock];
+        yield 'disallowed RSS order feed as an addTab argument' => [false, sprintf($tabs, 'rss/order_new'), $disallowedBlock];
+        yield 'disallowed block class name as an addTab argument' => [false, sprintf($tabs, 'Mage_Core_Block_Template_Zend'), $disallowedBlock];
+        yield 'subclass of a disallowed block as an addTab argument' => [
+            false,
+            sprintf($tabs, ValidatorTestZendBlockFixture::class),
+            $disallowedBlock,
+        ];
+        yield 'frontend block as an addTab argument' => [true, sprintf($tabs, 'catalog/product_view_attributes'), []];
+        yield 'URL path as an addTab argument' => [true, sprintf($tabs, '/checkout/cart'), []];
+
+        yield 'admin block as a lazy addPriceBlockType argument' => [
+            false,
+            '<reference name="product_list"><action method="addPriceBlockType">'
+                . '<type>simple</type><block>adminhtml/customer_grid</block><template>widget/grid.phtml</template></action></reference>',
+            $disallowedBlock,
+        ];
+
+        yield 'admin block as a lazy addItemRender argument' => [
+            false,
+            '<reference name="checkout.cart"><action method="addItemRender">'
+                . '<type>simple</type><block>Mage_Adminhtml_Block_Sales_Order_Grid</block><template>widget/grid.phtml</template></action></reference>',
+            $disallowedBlock,
+        ];
+
+        yield 'admin block nested in an associative action argument' => [
+            false,
+            '<reference name="content"><action method="addData"><data><renderer>adminhtml/customer_grid</renderer></data></action></reference>',
+            $disallowedBlock,
+        ];
+
+        yield 'admin block in an attribute value' => [
+            false,
+            '<reference name="content"><block type="core/text" name="t" renderer="adminhtml/customer_grid"/></reference>',
+            $disallowedBlock,
+        ];
+
+        yield 'frontend price block as an addPriceBlockType argument' => [
+            true,
+            '<reference name="product_list"><action method="addPriceBlockType">'
+                . '<type>msrp</type><block>catalog/product_price</block><template>catalog/product/price_msrp.phtml</template></action></reference>',
+            [],
+        ];
+
+        yield 'admin low-stock RSS feed block' => [false, '<block type="rss/catalog_notifyStock" name="r"/>', $disallowedBlock];
+        yield 'admin pending-review RSS feed block' => [false, '<block type="rss/catalog_review" name="r"/>', $disallowedBlock];
+        yield 'admin pending-review RSS feed class as an argument' => [false, sprintf($tabs, 'Mage_Rss_Block_Catalog_Review'), $disallowedBlock];
+        yield 'public RSS feed block' => [true, '<block type="rss/catalog_new" name="r"/>', []];
+
+        $area = '<reference name="content"><block type="core/template" name="t"><action method="%s">%s</action></block></reference>';
+        yield 'setArea' => [false, sprintf($area, 'setArea', '<a>adminhtml</a>'), $disallowedBlock];
+        yield 'setArea with a non-admin area' => [false, sprintf($area, 'setArea', '<a>frontend</a>'), $disallowedBlock];
+        yield 'setArea method name in upper case' => [false, sprintf($area, 'SETAREA', '<a>frontend</a>'), $disallowedBlock];
+        yield 'setArea as a Class::method callable' => [false, sprintf($area, 'Mage_Core_Block_Template::setArea', '<a>frontend</a>'), $disallowedBlock];
+        yield 'setData with the admin area' => [false, sprintf($area, 'setData', '<k>area</k><v>adminhtml</v>'), $disallowedBlock];
+        yield 'setData with the admin area padded and in another case' => [false, sprintf($area, 'setData', '<k>area</k><v> ./AdminHtml/ </v>'), $disallowedBlock];
+        yield 'addData with the admin area' => [false, sprintf($area, 'addData', '<d><area>adminhtml</area></d>'), $disallowedBlock];
+        yield 'setDataUsingMethod with the admin area' => [false, sprintf($area, 'setDataUsingMethod', '<k>area</k><v>adminhtml</v>'), $disallowedBlock];
+        yield 'setData with a value that is not an area' => [true, sprintf($area, 'setData', '<k>area</k><v>content</v>'), []];
+
+        yield 'CMS text with paths and admin words' => [
+            true,
+            '<reference name="content"><block type="core/text" name="t"><action method="setText">'
+                . '<t><![CDATA[<a href="/customer/account/">Account</a> admin adminhtml-free text]]></t></action></block></reference>',
+            [],
+        ];
+    }
+
+    /**
+     * Arguments listed in "translate" are checked as the layout generator passes them, after translation
+     *
+     * @group Model
+     */
+    public function testIsValidChecksTranslatedArguments(): void
+    {
+        $translations = [
+            'innocent' => 'adminhtml/customer_grid',
+            'switch' => 'adminhtml',
+            'title' => 'Title',
+        ];
+        $helper = new class ($translations) extends Mage_Core_Helper_Abstract {
+            /**
+             * @param array<string, string> $translations
+             */
+            public function __construct(private readonly array $translations) {}
+
+            #[Override]
+            public function __()
+            {
+                $text = (string) func_get_arg(0);
+                return $this->translations[$text] ?? $text;
+            }
+        };
+
+        Mage::register('_helper/openmagetest', $helper);
+        try {
+            $template = '<reference name="content"><block type="catalog/product_view_tabs" name="t">'
+                . '<action method="%s" translate="%s" module="openmagetest">%s</action></block></reference>';
+
+            $tab = '<alias>g</alias><title>title</title><block>%s</block><template>widget/grid.phtml</template>';
+            self::assertFalse(Mage::getModel('core/layout_validator')->isValid(
+                sprintf($template, 'addTab', 'title block', sprintf($tab, 'innocent')),
+            ));
+            self::assertFalse(Mage::getModel('core/layout_validator')->isValid(
+                sprintf($template, 'setData', 'v', '<k>area</k><v>switch</v>'),
+            ));
+            self::assertFalse(Mage::getModel('core/layout_validator')->isValid(
+                sprintf($template, 'addData', 'd.x', '<d><x>innocent</x></d>'),
+            ));
+            // without "translate" the argument is passed as written
+            self::assertTrue(Mage::getModel('core/layout_validator')->isValid(
+                sprintf($template, 'addTab', 'title', sprintf($tab, 'innocent')),
+            ));
+            self::assertTrue(Mage::getModel('core/layout_validator')->isValid(
+                sprintf($template, 'addTab', 'title missing.path', sprintf($tab, 'catalog/product_view_attributes')),
+            ));
+        } finally {
+            Mage::unregister('_helper/openmagetest');
+        }
+    }
+
+    /**
+     * @dataProvider getValidStoredUpdateDataProvider
+     * @group Model
+     */
+    public function testGetValidStoredUpdate(string $expected, mixed $layoutUpdate): void
+    {
+        self::assertSame(
+            $expected,
+            Mage::getModel('core/layout_validator')->getValidStoredUpdate($layoutUpdate, 'product 1'),
+        );
+    }
+
+    public static function getValidStoredUpdateDataProvider(): Generator
+    {
+        $valid = '<reference name="content"><block type="core/text" name="t"/></reference>';
+        yield 'valid update is applied' => [$valid, $valid];
+        yield 'empty update' => ['', ''];
+        yield 'no update' => ['', null];
+        yield 'invalid XML is skipped' => ['', '<reference name="content">'];
+        yield 'admin block as an argument is skipped' => [
+            '',
+            '<reference name="content"><block type="catalog/product_view_tabs" name="t"><action method="addTab">'
+                . '<alias>g</alias><title>x</title><block>adminhtml/permissions_user_grid</block><template>widget/grid.phtml</template>'
+                . '</action></block></reference>',
+        ];
+        yield 'setArea is skipped' => [
+            '',
+            '<reference name="content"><action method="setArea"><a>adminhtml</a></action></reference>',
         ];
     }
 }

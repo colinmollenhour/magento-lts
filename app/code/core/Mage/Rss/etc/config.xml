@@ -114,6 +114,8 @@
             <custom_layout>
                 <disallowed_block>
                     <Mage_Rss_Block_Order_New/>
+                    <Mage_Rss_Block_Catalog_NotifyStock/>
+                    <Mage_Rss_Block_Catalog_Review/>
                 </disallowed_block>
             </custom_layout>
         </validators>

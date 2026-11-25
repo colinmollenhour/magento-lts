@@ -7,6 +7,8 @@
  * @package    Mage_Core
  */
 
+use Monolog\Level;
+
 /**
  * Validator for custom layout update
  *
@@ -90,6 +92,13 @@ class Mage_Core_Model_Layout_Validator extends Mage_Core_Model_Validate_Abstract
         Mage_Adminhtml_Block_Abstract::class,
         Mage_Adminhtml_Block_Template::class,
     ];
+
+    /**
+     * Whether a class name is loaded or can be autoloaded, by class name
+     *
+     * @var array<string, bool>
+     */
+    protected $_loadableClasses = [];
 
     public function __construct()
     {
@@ -189,7 +198,10 @@ class Mage_Core_Model_Layout_Validator extends Mage_Core_Model_Validate_Abstract
         }
 
         $disallowedBlocks = $value->xpath($this->getXpathBlockValidationExpression());
-        if ((is_array($disallowedBlocks) && $disallowedBlocks !== []) || $this->_hasDisallowedBlock($value)) {
+        if ((is_array($disallowedBlocks) && $disallowedBlocks !== [])
+            || $this->_hasDisallowedBlock($value)
+            || $this->_hasAdminhtmlArea($value)
+        ) {
             $this->_error(self::INVALID_BLOCK_NAME);
             return false;
         }
@@ -214,6 +226,43 @@ class Mage_Core_Model_Layout_Validator extends Mage_Core_Model_Validate_Abstract
         }
 
         return true;
+    }
+
+    /**
+     * Return a stored custom layout update if it still passes validation, '' otherwise
+     *
+     * Custom layout updates are validated when they are saved, but an update saved before a rule
+     * existed would keep being applied. The code that applies a stored product, category or CMS page
+     * update validates it again with this method, so such an update stops working once the rule
+     * exists. A refused update is logged and skipped: the page renders without it.
+     *
+     * Use a new validator instance for each update, as messages accumulate.
+     *
+     * @param mixed  $layoutUpdate the stored update
+     * @param string $source       what the update belongs to, for the log, e.g. "product 42"
+     */
+    public function getValidStoredUpdate($layoutUpdate, string $source): string
+    {
+        if (!is_string($layoutUpdate) || trim($layoutUpdate) === '') {
+            return '';
+        }
+
+        try {
+            if ($this->isValid($layoutUpdate)) {
+                return $layoutUpdate;
+            }
+
+            $reason = implode(' ', $this->getMessages());
+        } catch (Throwable $throwable) {
+            $reason = $throwable->getMessage();
+        }
+
+        Mage::log(
+            sprintf('The custom layout update of %s was not applied because it is not valid: %s', $source, $reason),
+            Level::Warning,
+        );
+
+        return '';
     }
 
     /**
@@ -263,14 +312,18 @@ class Mage_Core_Model_Layout_Validator extends Mage_Core_Model_Validate_Abstract
     }
 
     /**
-     * Whether the layout update declares a block whose class is disallowed
+     * Whether any value of the layout update names a disallowed block class
      *
-     * The layout generator instantiates the "class" attribute when it is set and the "type"
-     * attribute otherwise, resolves "module/name" aliases through the configuration and loads
-     * class names case-insensitively, with or without a leading backslash. The XPath block test
-     * only compares the literal "type" attribute, so every block is also checked here against
-     * the class the generator would actually create, including subclasses of a disallowed class.
-     * Admin blocks are always disallowed, see _isAdminhtmlBlock().
+     * Blocks are not only created from the "class" or "type" attribute of a <block> element. Block
+     * methods that take a block type as an argument, such as Mage_Catalog_Block_Product_View_Tabs::addTab(),
+     * addItemRender(), addPriceBlockType() or addOptionRenderer(), pass an action argument to
+     * Mage_Core_Model_Layout::createBlock(), at once or when the page renders, and extensions add more such
+     * methods. So every text and attribute value of the update, and the translation of every action
+     * argument listed in a "translate" attribute, is treated as a block type: it is resolved the way the
+     * layout generator resolves one ("module/name" aliases through the configuration, class names
+     * case-insensitively, with or without a leading backslash) and refused when it is an admin block (see
+     * _isAdminhtmlBlock()), a class on the disallowed_block list or a subclass of one. Template paths,
+     * titles, numbers and block names do not resolve to such a class.
      */
     protected function _hasDisallowedBlock(Varien_Simplexml_Element $xml): bool
     {
@@ -282,27 +335,110 @@ class Mage_Core_Model_Layout_Validator extends Mage_Core_Model_Validate_Abstract
             }
         }
 
-        $blocks = $xml->xpath("//*[local-name()='block']");
-        foreach (is_array($blocks) ? $blocks : [] as $block) {
-            foreach (['class', 'type'] as $attribute) {
-                $className = $this->_resolveBlockClassName((string) $block[$attribute]);
-                if ($className === '') {
-                    continue;
-                }
+        foreach ($this->_getValueCandidates($xml) as $value) {
+            $className = $this->_resolveBlockClassName($value);
+            if ($className === '') {
+                continue;
+            }
 
-                if ($this->_isAdminhtmlBlock($className) || isset($disallowed[strtolower($className)])) {
+            if ($this->_isAdminhtmlBlock($className) || isset($disallowed[strtolower($className)])) {
+                return true;
+            }
+
+            foreach ($disallowed as $disallowedClass) {
+                if ($this->_isSubclassOf($className, $disallowedClass)) {
                     return true;
-                }
-
-                foreach ($disallowed as $disallowedClass) {
-                    if ($this->_isSubclassOf($className, $disallowedClass)) {
-                        return true;
-                    }
                 }
             }
         }
 
         return false;
+    }
+
+    /**
+     * Whether the layout update switches a block to the admin design area
+     *
+     * A block renders its template from the design area returned by getArea(), which reads the "area"
+     * data key, so a storefront block switched to "adminhtml" renders admin templates such as the grid
+     * template. A storefront update has no reason to change the area of a block: any setArea() call is
+     * refused, compared the way PHP resolves method names (case-insensitively, after any "Class::"
+     * part), and so is any value that names the admin area, which covers setData(), addData() and
+     * setDataUsingMethod() with the "area" key.
+     */
+    protected function _hasAdminhtmlArea(Varien_Simplexml_Element $xml): bool
+    {
+        $methods = $xml->xpath('//@method');
+        foreach (is_array($methods) ? $methods : [] as $method) {
+            $method = (string) $method;
+            $separator = strrpos($method, '::');
+            if ($separator !== false) {
+                $method = substr($method, $separator + 2);
+            }
+
+            if (strtolower(trim($method)) === 'setarea') {
+                return true;
+            }
+        }
+
+        foreach ($this->_getValueCandidates($xml) as $value) {
+            // the area is a directory name, so "./adminhtml/" or, on a case-insensitive file system,
+            // "ADMINHTML" reaches the same templates
+            if (strtolower(trim($value, " \t\n\r\0\x0B./\\")) === Mage_Core_Model_App_Area::AREA_ADMINHTML) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Every value the layout generator could pass to a block method or a block factory
+     *
+     * That is the text of every element and the value of every attribute, as written and, for the
+     * arguments an action lists in its "translate" attribute, as translated by the module the action
+     * names, the way Mage_Core_Model_Layout::_translateLayoutNode() translates them. Translations depend
+     * on the locale, so a stored update is validated again in the store's locale when it is applied.
+     *
+     * @return list<string>
+     */
+    protected function _getValueCandidates(Varien_Simplexml_Element $xml): array
+    {
+        $values = [];
+        $nodes = $xml->xpath('//* | //@*');
+        foreach (is_array($nodes) ? $nodes : [] as $node) {
+            $values[(string) $node] = true;
+        }
+
+        $translatedNodes = $xml->xpath('//*[@translate]');
+        foreach (is_array($translatedNodes) ? $translatedNodes : [] as $node) {
+            $moduleName = isset($node['module']) ? (string) $node['module'] : 'core';
+            foreach (explode(' ', (string) $node['translate']) as $argumentPath) {
+                $argument = $node;
+                foreach (explode('.', $argumentPath) as $argumentName) {
+                    $child = null;
+                    foreach ($argument->children() as $childName => $childElement) {
+                        if ($childName === $argumentName) {
+                            $child = $childElement;
+                            break;
+                        }
+                    }
+
+                    if ($child === null) {
+                        continue 2;
+                    }
+
+                    $argument = $child;
+                }
+
+                try {
+                    $values[(string) Mage::helper($moduleName)->__((string) $argument)] = true;
+                } catch (Throwable) {
+                    // the layout generator fails the same way before it calls the action
+                }
+            }
+        }
+
+        return array_map(strval(...), array_keys($values));
     }
 
     /**
@@ -334,7 +470,13 @@ class Mage_Core_Model_Layout_Validator extends Mage_Core_Model_Validate_Abstract
     {
         $blockType = trim($blockType);
         if (str_contains($blockType, '/')) {
-            $blockType = (string) Mage::getConfig()?->getBlockClassName($blockType);
+            try {
+                $blockType = (string) Mage::getConfig()?->getBlockClassName($blockType);
+            } catch (Throwable) {
+                // any value is resolved here, not only block types; the layout generator cannot create a
+                // block from a value that cannot be resolved either
+                return '';
+            }
         }
 
         return ltrim($blockType, '\\');
@@ -349,9 +491,10 @@ class Mage_Core_Model_Layout_Validator extends Mage_Core_Model_Validate_Abstract
     protected function _isSubclassOf(string $className, string $parentClassName): bool
     {
         foreach ([$className, $parentClassName] as $name) {
-            if (!class_exists($name, false)
-                && (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name) !== 1 || !is_string(mageFindClassFile($name)))
-            ) {
+            // every value of an update is a candidate, so the include path lookup is remembered
+            $this->_loadableClasses[$name] ??= class_exists($name, false)
+                || (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name) === 1 && is_string(mageFindClassFile($name)));
+            if (!$this->_loadableClasses[$name]) {
                 return false;
             }
         }
