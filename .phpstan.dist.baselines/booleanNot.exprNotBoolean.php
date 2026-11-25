@@ -673,7 +673,7 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Only booleans are allowed in a negated boolean, int|string|null given.',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../app/code/core/Mage/Adminhtml/controllers/Catalog/Product/SetController.php',
 ];
 $ignoreErrors[] = [
@@ -1913,7 +1913,7 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Only booleans are allowed in a negated boolean, int|string|null given.',
-    'count' => 8,
+    'count' => 3,
     'path' => __DIR__ . '/../app/code/core/Mage/Catalog/Model/Product/Attribute/Set/Api.php',
 ];
 $ignoreErrors[] = [

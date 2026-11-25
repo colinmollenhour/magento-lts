@@ -120,8 +120,9 @@ class Mage_Adminhtml_Block_Catalog_Product_Edit_Tabs extends Mage_Adminhtml_Bloc
             }
 
             if ($this->getRequest()->getParam('id', false)) {
+                // The tab lists reviews of every status, so it needs All Reviews, as its action does
                 if ($this->isModuleEnabled('Mage_Review', 'catalog')
-                    && Mage::getSingleton('admin/session')->isAllowed('admin/catalog/reviews_ratings')
+                    && Mage::getSingleton('admin/session')->isAllowed('catalog/reviews_ratings/reviews/all')
                 ) {
                     $this->addTab('reviews', [
                         'label' => Mage::helper('catalog')->__('Product Reviews'),
@@ -130,8 +131,9 @@ class Mage_Adminhtml_Block_Catalog_Product_Edit_Tabs extends Mage_Adminhtml_Bloc
                     ]);
                 }
 
+                // The tabs list tags of every status, so they need All Tags, as their actions do
                 if ($this->isModuleEnabled('Mage_Tag', 'catalog')
-                    && Mage::getSingleton('admin/session')->isAllowed('admin/catalog/tag')
+                    && Mage::getSingleton('admin/session')->isAllowed('catalog/tag/all')
                 ) {
                     $this->addTab('tags', [
                         'label'     => Mage::helper('catalog')->__('Product Tags'),

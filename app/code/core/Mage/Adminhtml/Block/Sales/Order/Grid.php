@@ -199,30 +199,40 @@ class Mage_Adminhtml_Block_Sales_Order_Grid extends Mage_Adminhtml_Block_Widget_
             ]);
         }
 
-        $this->getMassactionBlock()->addItem(MassAction::PDF_INVOICE_ORDER, [
-            'label' => Mage::helper('sales')->__('Print Invoices'),
-            'url'  => $this->getUrl('*/sales_order/pdfinvoices'),
-        ]);
+        // The order documents print what the order view shows, so they need the View permission
+        if (Mage::getSingleton('admin/session')->isAllowed('sales/order/actions/view')) {
+            $this->getMassactionBlock()->addItem(MassAction::PDF_INVOICE_ORDER, [
+                'label' => Mage::helper('sales')->__('Print Invoices'),
+                'url'  => $this->getUrl('*/sales_order/pdfinvoices'),
+            ]);
 
-        $this->getMassactionBlock()->addItem(MassAction::PDF_SHIPMENTS_ORDER, [
-            'label' => Mage::helper('sales')->__('Print Packingslips'),
-            'url'  => $this->getUrl('*/sales_order/pdfshipments'),
-        ]);
+            $this->getMassactionBlock()->addItem(MassAction::PDF_SHIPMENTS_ORDER, [
+                'label' => Mage::helper('sales')->__('Print Packingslips'),
+                'url'  => $this->getUrl('*/sales_order/pdfshipments'),
+            ]);
 
-        $this->getMassactionBlock()->addItem(MassAction::PDF_CREDITMEMOS_ORDER, [
-            'label' => Mage::helper('sales')->__('Print Credit Memos'),
-            'url'  => $this->getUrl('*/sales_order/pdfcreditmemos'),
-        ]);
+            if (Mage::getSingleton('admin/session')->isAllowed('sales/order/actions/creditmemo')
+                || Mage::getSingleton('admin/session')->isAllowed('sales/creditmemo')
+            ) {
+                $this->getMassactionBlock()->addItem(MassAction::PDF_CREDITMEMOS_ORDER, [
+                    'label' => Mage::helper('sales')->__('Print Credit Memos'),
+                    'url'  => $this->getUrl('*/sales_order/pdfcreditmemos'),
+                ]);
+            }
 
-        $this->getMassactionBlock()->addItem(MassAction::PDF_DOCS_ORDER, [
-            'label' => Mage::helper('sales')->__('Print All'),
-            'url'  => $this->getUrl('*/sales_order/pdfdocs'),
-        ]);
+            $this->getMassactionBlock()->addItem(MassAction::PDF_DOCS_ORDER, [
+                'label' => Mage::helper('sales')->__('Print All'),
+                'url'  => $this->getUrl('*/sales_order/pdfdocs'),
+            ]);
+        }
 
-        $this->getMassactionBlock()->addItem(MassAction::PRINT_SHIPMENT_LABEL, [
-            'label' => Mage::helper('sales')->__('Print Shipping Labels'),
-            'url'  => $this->getUrl('*/sales_order_shipment/massPrintShippingLabel'),
-        ]);
+        // Shipping labels are printed by the shipment controller, which needs the Shipments permission
+        if (Mage::getSingleton('admin/session')->isAllowed('sales/shipment')) {
+            $this->getMassactionBlock()->addItem(MassAction::PRINT_SHIPMENT_LABEL, [
+                'label' => Mage::helper('sales')->__('Print Shipping Labels'),
+                'url'  => $this->getUrl('*/sales_order_shipment/massPrintShippingLabel'),
+            ]);
+        }
 
         return parent::_prepareMassaction();
     }

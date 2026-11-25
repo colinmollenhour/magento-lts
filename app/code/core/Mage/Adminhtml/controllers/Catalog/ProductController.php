@@ -33,6 +33,33 @@ class Mage_Adminhtml_Catalog_ProductController extends Mage_Adminhtml_Controller
     protected $_publicActions = ['edit'];
 
     /**
+     * Product edit tab grids that gridOnly may render ("adminhtml/catalog_product_edit_tab_<name>")
+     *
+     * They show products only. Tabs that show other data have their own actions and permissions.
+     */
+    protected const GRID_ONLY_BLOCKS = ['related', 'upsell', 'crosssell', 'super_group'];
+
+    /**
+     * @inheritDoc
+     */
+    #[Override]
+    protected function _isAllowed(): bool
+    {
+        if (!parent::_isAllowed()) {
+            return false;
+        }
+
+        // Each tab action needs the permission that shows its tab (Mage_Adminhtml_Block_Catalog_Product_Edit_Tabs)
+        $session = Mage::getSingleton('admin/session');
+        return match (strtolower($this->getRequest()->getActionName())) {
+            'reviews' => $session->isAllowed('catalog/reviews_ratings/reviews/all'),
+            'taggrid', 'tagcustomergrid' => $session->isAllowed('catalog/tag/all'),
+            'gridonly' => in_array($this->getRequest()->getParam('gridOnlyBlock'), static::GRID_ONLY_BLOCKS, true),
+            default => true,
+        };
+    }
+
+    /**
      * Controller pre-dispatch method
      *
      * @return Mage_Adminhtml_Controller_Action

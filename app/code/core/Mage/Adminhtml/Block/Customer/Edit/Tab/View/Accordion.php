@@ -21,11 +21,14 @@ class Mage_Adminhtml_Block_Customer_Edit_Tab_View_Accordion extends Mage_Adminht
 
         $this->setId('customerViewAccordion');
 
-        $this->addItem('lastOrders', [
-            'title'       => Mage::helper('customer')->__('Recent Orders'),
-            'ajax'        => true,
-            'content_url' => $this->getUrl('*/*/lastOrders', ['_current' => true]),
-        ]);
+        // The lastOrders action needs the order View permission, as the customer Orders tab does
+        if (Mage::getSingleton('admin/session')->isAllowed('sales/order/actions/view')) {
+            $this->addItem('lastOrders', [
+                'title'       => Mage::helper('customer')->__('Recent Orders'),
+                'ajax'        => true,
+                'content_url' => $this->getUrl('*/*/lastOrders', ['_current' => true]),
+            ]);
+        }
 
         // add shopping cart block of each website
         foreach (Mage::registry('current_customer')->getSharedWebsiteIds() as $websiteId) {

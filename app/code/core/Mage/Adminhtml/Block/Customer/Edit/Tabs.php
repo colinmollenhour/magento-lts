@@ -78,8 +78,10 @@ class Mage_Adminhtml_Block_Customer_Edit_Tabs extends Mage_Adminhtml_Block_Widge
                 ]);
             }
 
+            // The Reviews and Tags tabs list entries of every status, so they need All Reviews / All Tags,
+            // as their actions do (Mage_Adminhtml_CustomerController::_isAllowed())
             if ($this->isModuleOutputEnabled('Mage_Review')
-                && Mage::getSingleton('admin/session')->isAllowed('catalog/reviews_ratings')
+                && Mage::getSingleton('admin/session')->isAllowed('catalog/reviews_ratings/reviews/all')
             ) {
                 $this->addTab('reviews', [
                     'label'     => Mage::helper('customer')->__('Product Reviews'),
@@ -89,7 +91,7 @@ class Mage_Adminhtml_Block_Customer_Edit_Tabs extends Mage_Adminhtml_Block_Widge
             }
 
             if ($this->isModuleEnabled('Mage_Tag')
-                && Mage::getSingleton('admin/session')->isAllowed('catalog/tag')
+                && Mage::getSingleton('admin/session')->isAllowed('catalog/tag/all')
             ) {
                 $this->addTab('tags', [
                     'label'     => Mage::helper('customer')->__('Product Tags'),

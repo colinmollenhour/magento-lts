@@ -24,19 +24,51 @@ class Mage_Adminhtml_Catalog_Product_GroupController extends Mage_Adminhtml_Cont
      */
     public function saveAction()
     {
-        $model = Mage::getModel('eav/entity_attribute_group');
+        // This action belongs to the product attribute set editor: other entity types' sets are not its to change
+        $attributeSetId = (int) $this->getRequest()->getParam('attribute_set_id');
+        if ($this->_getAttributeSetEntityTypeId($attributeSetId) !== $this->_getProductEntityTypeId()) {
+            $this->_getSession()->addError(Mage::helper('catalog')->__('An error occurred while saving this group.'));
+            return;
+        }
 
+        $model = $this->_createGroupModel();
         $model->setAttributeGroupName($this->getRequest()->getParam('attribute_group_name'))
-              ->setAttributeSetId($this->getRequest()->getParam('attribute_set_id'));
+              ->setAttributeSetId($attributeSetId);
 
         if ($model->itemExists()) {
-            Mage::getSingleton('adminhtml/session')->addError(Mage::helper('catalog')->__('A group with the same name already exists.'));
+            $this->_getSession()->addError(Mage::helper('catalog')->__('A group with the same name already exists.'));
         } else {
             try {
                 $model->save();
             } catch (Exception) {
-                Mage::getSingleton('adminhtml/session')->addError(Mage::helper('catalog')->__('An error occurred while saving this group.'));
+                $this->_getSession()->addError(Mage::helper('catalog')->__('An error occurred while saving this group.'));
             }
         }
+    }
+
+    /**
+     * Entity type of an attribute set, null when the set does not exist
+     */
+    protected function _getAttributeSetEntityTypeId(int $attributeSetId): ?int
+    {
+        if ($attributeSetId <= 0) {
+            return null;
+        }
+
+        $attributeSet = Mage::getModel('eav/entity_attribute_set')->load($attributeSetId);
+        return (int) $attributeSet->getId() === 0 ? null : (int) $attributeSet->getEntityTypeId();
+    }
+
+    protected function _getProductEntityTypeId(): int
+    {
+        return (int) Mage::getModel('catalog/product')->getResource()->getTypeId();
+    }
+
+    /**
+     * @return Mage_Eav_Model_Entity_Attribute_Group
+     */
+    protected function _createGroupModel()
+    {
+        return Mage::getModel('eav/entity_attribute_group');
     }
 }

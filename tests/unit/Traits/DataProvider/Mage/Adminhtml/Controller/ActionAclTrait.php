@@ -12,6 +12,8 @@ declare(strict_types=1);
 namespace OpenMage\Tests\Unit\Traits\DataProvider\Mage\Adminhtml\Controller;
 
 use Generator;
+use Mage_Adminhtml_Catalog_ProductController;
+use Mage_Adminhtml_CustomerController;
 use Mage_Adminhtml_Report_CustomerController;
 use Mage_Adminhtml_Report_ProductController;
 use Mage_Adminhtml_Report_SalesController;
@@ -21,6 +23,7 @@ use Mage_Adminhtml_ReportController;
 use Mage_Adminhtml_Sales_Order_CreditmemoController;
 use Mage_Adminhtml_Sales_Order_InvoiceController;
 use Mage_Adminhtml_Sales_Order_ShipmentController;
+use Mage_Adminhtml_Sales_Order_View_GiftmessageController;
 use Mage_Adminhtml_Sales_OrderController;
 use Mage_Adminhtml_System_ConfigController;
 use Mage_Adminhtml_Tax_RateController;
@@ -54,9 +57,84 @@ trait ActionAclTrait
         yield 'order addressSave denied without edit' => [$order, 'addressSave', [], $view, false];
         yield 'order addressSave allowed with edit' => [$order, 'addressSave', [], ['sales/order/actions/edit'], true];
         yield 'order pdfcreditmemos denied without credit memos' => [$order, 'pdfcreditmemos', [], $view, false];
-        yield 'order pdfcreditmemos allowed with order credit memos' => [$order, 'pdfcreditmemos', [], ['sales/order/actions/creditmemo'], true];
-        yield 'order pdfcreditmemos allowed with credit memo grid' => [$order, 'pdfcreditmemos', [], ['sales/order', 'sales/creditmemo'], true];
+        yield 'order pdfcreditmemos allowed with order credit memos' => [$order, 'pdfcreditmemos', [], [...$view, 'sales/order/actions/creditmemo'], true];
+        yield 'order pdfcreditmemos allowed with credit memo grid' => [$order, 'pdfcreditmemos', [], [...$view, 'sales/creditmemo'], true];
+        yield 'order pdfcreditmemos denied to order credit memos without view' => [$order, 'pdfcreditmemos', [], ['sales/order/actions/creditmemo'], false];
+        yield 'order pdfcreditmemos denied to credit memo grid without view' => [$order, 'pdfcreditmemos', [], ['sales/order', 'sales/creditmemo'], false];
         yield 'order pdfdocs still allowed to order viewers' => [$order, 'pdfdocs', [], $view, true];
+
+        // Any Orders action grants sales/order in the role editor, so these need View
+        $hold = ['sales/order/actions/hold'];
+        foreach (['pdfinvoices', 'pdfshipments', 'pdfdocs', 'commentsHistory'] as $action) {
+            yield "order $action denied to hold" => [$order, $action, [], $hold, false];
+            yield "order $action allowed with view" => [$order, $action, [], $view, true];
+        }
+
+        // The document tab grids need View and the permission that shows their tab
+        $tabs = ['invoices' => 'sales/invoice', 'shipments' => 'sales/shipment', 'creditmemos' => 'sales/creditmemo', 'transactions' => 'sales/transactions'];
+        foreach ($tabs as $action => $tab) {
+            yield "order $action denied to hold" => [$order, $action, [], [...$hold, $tab], false];
+            yield "order $action denied to view without $tab" => [$order, $action, [], $view, false];
+            yield "order $action allowed with view and $tab" => [$order, $action, [], [...$view, $tab], true];
+        }
+
+        yield 'order creditmemos denied to view and order credit memos' => [$order, 'creditmemos', [], [...$view, 'sales/order/actions/creditmemo'], false];
+        yield 'order addComment denied to comment without view' => [$order, 'addComment', [], ['sales/order/actions/comment'], false];
+        yield 'order addComment denied to view without comment' => [$order, 'addComment', [], $view, false];
+        yield 'order addComment allowed with view and comment' => [$order, 'addComment', [], [...$view, 'sales/order/actions/comment'], true];
+        yield 'order grid still allowed to hold' => [$order, 'grid', [], $hold, true];
+
+        $giftmessage = Mage_Adminhtml_Sales_Order_View_GiftmessageController::class;
+        yield 'order gift message save denied to hold' => [$giftmessage, 'save', [], $hold, false];
+        yield 'order gift message save allowed with view' => [$giftmessage, 'save', [], $view, true];
+
+        // Product and customer edit tab actions need the permission that shows their tab
+        $product = Mage_Adminhtml_Catalog_ProductController::class;
+        $products = ['catalog/products'];
+        $allReviews = 'catalog/reviews_ratings/reviews/all';
+        $allTags = 'catalog/tag/all';
+        yield 'product reviews tab denied to products' => [$product, 'reviews', [], $products, false];
+        yield 'product reviews tab denied to pending reviews' => [$product, 'reviews', [], [...$products, 'catalog/reviews_ratings/reviews/pending'], false];
+        yield 'product reviews tab denied to ratings' => [$product, 'reviews', [], [...$products, 'catalog/reviews_ratings/ratings'], false];
+        yield 'product reviews tab allowed with all reviews' => [$product, 'reviews', [], [...$products, $allReviews], true];
+        yield 'product reviews tab denied to all reviews without products' => [$product, 'reviews', [], [$allReviews], false];
+        foreach (['tagGrid', 'tagCustomerGrid'] as $action) {
+            yield "product $action denied to products" => [$product, $action, [], $products, false];
+            yield "product $action denied to pending tags" => [$product, $action, [], [...$products, 'catalog/tag/pending'], false];
+            yield "product $action allowed with all tags" => [$product, $action, [], [...$products, $allTags], true];
+        }
+
+        foreach (['related', 'upsell', 'crosssell', 'super_group'] as $block) {
+            yield "product gridOnly $block allowed with products" => [$product, 'gridOnly', ['gridOnlyBlock' => $block], $products, true];
+        }
+
+        foreach (['reviews', 'tag', 'tag_customer', 'alerts_stock', '', 'related/../tag'] as $block) {
+            yield "product gridOnly '$block' denied" => [$product, 'gridOnly', ['gridOnlyBlock' => $block], [...$products, $allReviews, $allTags], false];
+        }
+
+        yield 'product edit unchanged for products' => [$product, 'edit', ['id' => '5'], $products, true];
+
+        $customer = Mage_Adminhtml_CustomerController::class;
+        $customers = ['customer/manage'];
+        $customerTabs = [
+            'orders' => 'sales/order/actions/view',
+            'lastOrders' => 'sales/order/actions/view',
+            'newsletter' => 'newsletter/subscriber',
+            'productReviews' => $allReviews,
+            'productTags' => $allTags,
+            'tagGrid' => $allTags,
+        ];
+        foreach ($customerTabs as $action => $tab) {
+            yield "customer $action denied to customers" => [$customer, $action, ['id' => '3'], $customers, false];
+            yield "customer $action allowed with $tab" => [$customer, $action, ['id' => '3'], [...$customers, $tab], true];
+            yield "customer $action denied to $tab without customers" => [$customer, $action, ['id' => '3'], [$tab], false];
+        }
+
+        yield 'customer orders denied to order hold' => [$customer, 'orders', ['id' => '3'], [...$customers, ...$hold], false];
+        yield 'customer reviews denied to pending reviews' => [$customer, 'productReviews', ['id' => '3'], [...$customers, 'catalog/reviews_ratings/reviews/pending'], false];
+        yield 'customer tags denied to pending tags' => [$customer, 'productTags', ['id' => '3'], [...$customers, 'catalog/tag/pending'], false];
+        yield 'customer cart unchanged for customers' => [$customer, 'carts', ['id' => '3'], $customers, true];
+        yield 'customer edit unchanged for customers' => [$customer, 'edit', ['id' => '3'], $customers, true];
         yield 'order grid still allowed to order viewers' => [$order, 'index', [], $view, true];
         yield 'order export still allowed to order viewers' => [$order, 'exportCsv', [], $view, true];
         yield 'order cancel unchanged' => [$order, 'cancel', [], $view, false];
@@ -265,6 +343,37 @@ trait ActionAclTrait
     }
 
     /**
+     * Action, session quote data, request params, resources, expected result.
+     *
+     * @return Generator<string, array<mixed>>
+     */
+    public static function provideOrderCreateDuringReorderAclData(): Generator
+    {
+        $reorder = ['sales/order/actions/reorder'];
+        $create = ['sales/order/actions/create'];
+        $reordering = ['reordered' => 12, 'customer_id' => 3, 'store_id' => 1];
+        $guestReorder = ['reordered' => 12, 'customer_id' => false, 'store_id' => 1];
+
+        foreach (['index', 'loadBlock', 'processData', 'addConfigured', 'configureProductToAdd', 'configureQuoteItems', 'showUpdateResult', 'save'] as $action) {
+            yield "$action of a reorder allowed with reorder" => [$action, $reordering, [], $reorder, true];
+            yield "$action of a reorder for its customer allowed with reorder" => [$action, $reordering, ['customer_id' => '3', 'store_id' => '1'], $reorder, true];
+            yield "$action switching the customer of a reorder denied to reorder" => [$action, $reordering, ['customer_id' => '4'], $reorder, false];
+            yield "$action switching the store of a reorder denied to reorder" => [$action, $reordering, ['store_id' => '2'], $reorder, false];
+            yield "$action switching the customer of a reorder allowed with reorder and create" => [$action, $reordering, ['customer_id' => '4'], [...$reorder, ...$create], true];
+            yield "$action switching the customer of a reorder denied to create" => [$action, $reordering, ['customer_id' => '4'], $create, false];
+        }
+
+        yield 'guest reorder kept as guest allowed with reorder' => ['loadBlock', $guestReorder, ['customer_id' => '', 'store_id' => '1'], $reorder, true];
+        yield 'guest reorder switched to a customer denied to reorder' => ['loadBlock', $guestReorder, ['customer_id' => '2'], $reorder, false];
+        yield 'customer grid during a reorder denied to reorder' => ['loadBlock', $reordering, ['block' => 'customer_grid'], $reorder, false];
+        yield 'customer grid among other blocks denied to reorder' => ['loadBlock', $reordering, ['block' => 'header, CUSTOMER_GRID'], $reorder, false];
+        yield 'customer grid during a reorder allowed with reorder and create' => ['loadBlock', $reordering, ['block' => 'customer_grid'], [...$reorder, ...$create], true];
+        yield 'reorder blocks allowed with reorder' => ['loadBlock', $reordering, ['block' => 'items,shipping_method,totals,billing_method'], $reorder, true];
+        yield 'customer grid of a new order allowed with create' => ['loadBlock', [], ['block' => 'customer_grid'], $create, true];
+        yield 'customer grid during an edit denied to edit' => ['loadBlock', ['order_id' => 12, 'customer_id' => 3, 'store_id' => 1], ['block' => 'customer_grid'], ['sales/order/actions/edit'], false];
+    }
+
+    /**
      * Action, request params, statuses of the requested tags, resources, expected result.
      *
      * @return Generator<string, array<mixed>>
@@ -289,6 +398,38 @@ trait ActionAclTrait
         yield 'mass delete with an approved tag denied to pending' => ['massDelete', ['tag' => ['5', '6']], [5 => $pending, 6 => $approved], $pendingOnly, false];
         yield 'mass status of pending tags allowed with pending' => ['massStatus', ['tag' => ['5', '6']], [5 => $pending, 6 => $pending], $pendingOnly, true];
         yield 'delete approved tag allowed with all' => ['delete', ['tag_id' => '5'], [5 => $approved], $all, true];
+
+        // The check covers every id an action may read, not only the first one it finds
+        foreach (['edit', 'save', 'delete', 'assigned', 'assignedGridOnly', 'product', 'customer'] as $action) {
+            yield "$action of an approved tag named beside a pending tag[] denied to pending" => [$action, ['tag' => ['5'], 'tag_id' => '6'], [5 => $pending, 6 => $approved], $pendingOnly, false];
+            yield "$action of a pending tag with a matching tag[] allowed with pending" => [$action, ['tag' => ['5'], 'tag_id' => '5'], [5 => $pending], $pendingOnly, true];
+        }
+
+        yield 'mass delete with a tag_id beside pending tags denied to pending' => ['massDelete', ['tag' => ['5'], 'tag_id' => '6'], [5 => $pending, 6 => $approved], $pendingOnly, false];
+        yield 'edit with a scalar approved tag denied to pending' => ['edit', ['tag' => '6', 'tag_id' => '5'], [5 => $pending, 6 => $approved], $pendingOnly, false];
+        yield 'edit with a nested tag id denied to pending' => ['edit', ['tag' => [['6']], 'tag_id' => '5'], [5 => $pending, 6 => $approved], $pendingOnly, false];
+        yield 'mixed ids allowed with all' => ['delete', ['tag' => ['5'], 'tag_id' => '6'], [5 => $pending, 6 => $approved], $all, true];
+    }
+
+    /**
+     * Action, route tag_id, posted tag_id, statuses of the requested tags, resources, expected result.
+     *
+     * @return Generator<string, array<mixed>>
+     */
+    public static function provideTagPostedIdAclData(): Generator
+    {
+        $pendingOnly = ['catalog/tag/pending'];
+        $pending = 0;
+        $approved = 1;
+
+        foreach (['save', 'delete', 'edit'] as $action) {
+            yield "$action of a pending tag posting an approved tag_id denied to pending" => [$action, '5', '6', [5 => $pending, 6 => $approved], $pendingOnly, false];
+            yield "$action of a pending tag posting the same tag_id allowed with pending" => [$action, '5', '5', [5 => $pending], $pendingOnly, true];
+        }
+
+        yield 'save of a pending tag posted without a route id allowed with pending' => ['save', null, '5', [5 => $pending], $pendingOnly, true];
+        yield 'save of an approved tag posted without a route id denied to pending' => ['save', null, '6', [6 => $approved], $pendingOnly, false];
+        yield 'save of a pending tag posting an approved tag_id allowed with all' => ['save', '5', '6', [5 => $pending, 6 => $approved], ['catalog/tag/all'], true];
     }
 
     /**

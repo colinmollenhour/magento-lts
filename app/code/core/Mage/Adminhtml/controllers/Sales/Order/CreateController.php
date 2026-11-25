@@ -374,6 +374,11 @@ class Mage_Adminhtml_Sales_Order_CreateController extends Mage_Adminhtml_Control
      */
     public function loadBlockAction()
     {
+        if (!$this->_isLoadBlockAllowed()) {
+            $this->_forward('denied');
+            return;
+        }
+
         $request = $this->getRequest();
         try {
             $this->_initSession()
@@ -539,6 +544,10 @@ class Mage_Adminhtml_Sales_Order_CreateController extends Mage_Adminhtml_Control
     protected function _isAllowed(): bool
     {
         $action = strtolower($this->getRequest()->getActionName());
+        if ($action === 'loadblock' && !$this->_isLoadBlockAllowed()) {
+            return false;
+        }
+
         // These actions build and submit the quote, for a new order or for a reorder in progress
         $quoteActions = [
             'index', 'save', 'loadblock', 'processdata', 'addconfigured',
@@ -551,7 +560,15 @@ class Mage_Adminhtml_Sales_Order_CreateController extends Mage_Adminhtml_Control
                     && Mage::getSingleton('admin/session')->isAllowed('sales/order/actions/edit');
             }
 
-            $action = $this->_getSession()->getReordered() ? 'reorder' : 'index';
+            if ($this->_getSession()->getReordered()) {
+                // A reorder places the order for the customer and store of the reordered order.
+                // Choosing another one creates a new order, which needs Create as well.
+                return Mage::getSingleton('admin/session')->isAllowed('sales/order/actions/reorder')
+                    && ($this->_isRequestForEditedOrder()
+                        || Mage::getSingleton('admin/session')->isAllowed('sales/order/actions/create'));
+            }
+
+            $action = 'index';
         }
 
         $aclPath = match ($action) {
@@ -673,10 +690,11 @@ class Mage_Adminhtml_Sales_Order_CreateController extends Mage_Adminhtml_Control
     }
 
     /**
-     * Whether the request keeps the customer and store of the order being edited
+     * Whether the request keeps the customer and store of the order being edited or reordered
      *
-     * The edit form posts the customer and store the edit was started with. A request naming
-     * another one would move the edited order to that customer or store.
+     * The edit and reorder forms post the customer and store the session was started with
+     * (initFromOrder() copies them from the order). A request naming another one would move
+     * the order to that customer or store.
      */
     protected function _isRequestForEditedOrder(): bool
     {
@@ -687,6 +705,30 @@ class Mage_Adminhtml_Sales_Order_CreateController extends Mage_Adminhtml_Control
             if ($requested !== null && $requested !== '' && (int) $requested !== $current) {
                 return false;
             }
+        }
+
+        return true;
+    }
+
+    /**
+     * Whether the current admin may load every block the loadBlock request names
+     *
+     * The customer grid lists every customer. Only a new order chooses its customer, so it needs
+     * Create in every kind of session, including order edits and reorders, which never offer it.
+     */
+    protected function _isLoadBlockAllowed(): bool
+    {
+        $block = $this->getRequest()->getParam('block');
+        if (!is_scalar($block) && $block !== null) {
+            return false;
+        }
+
+        $blocks = array_map(
+            static fn(string $name): string => strtolower(trim($name)),
+            explode(',', (string) $block),
+        );
+        if (in_array('customer_grid', $blocks, true)) {
+            return Mage::getSingleton('admin/session')->isAllowed('sales/order/actions/create');
         }
 
         return true;
