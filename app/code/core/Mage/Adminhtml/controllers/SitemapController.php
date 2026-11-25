@@ -176,11 +176,13 @@ class Mage_Adminhtml_SitemapController extends Mage_Adminhtml_Controller_Action
                 }
             }
 
+            $previousFile = null;
             if ($this->getRequest()->getParam('sitemap_id')) {
                 $model ->load($this->getRequest()->getParam('sitemap_id'));
 
-                if ($model->getSitemapFilename() && file_exists($model->getPreparedFilename())) {
-                    unlink($model->getPreparedFilename());
+                // the stored path is checked again, a row may point into a protected directory
+                if ($model->getSitemapFilename() && $model->isPathAllowed()) {
+                    $previousFile = $model->getPreparedFilename();
                 }
             }
 
@@ -190,6 +192,12 @@ class Mage_Adminhtml_SitemapController extends Mage_Adminhtml_Controller_Action
             try {
                 // save the data
                 $model->save();
+
+                // remove the previous file only once the new path has been accepted
+                if ($previousFile !== null && file_exists($previousFile)) {
+                    unlink($previousFile);
+                }
+
                 // display success message
                 Mage::getSingleton('adminhtml/session')->addSuccess(
                     Mage::helper('sitemap')->__('The sitemap has been saved.'),
@@ -243,8 +251,9 @@ class Mage_Adminhtml_SitemapController extends Mage_Adminhtml_Controller_Action
                 // init and load sitemap model
 
                 $model->load($id);
-                // delete file
-                if ($model->getSitemapFilename() && file_exists($model->getPreparedFilename())) {
+                // delete file, unless the stored path points into a protected directory
+                $keepFile = $model->getSitemapFilename() && !$model->isPathAllowed();
+                if ($model->getSitemapFilename() && !$keepFile && file_exists($model->getPreparedFilename())) {
                     unlink($model->getPreparedFilename());
                 }
 
@@ -253,6 +262,12 @@ class Mage_Adminhtml_SitemapController extends Mage_Adminhtml_Controller_Action
                 Mage::getSingleton('adminhtml/session')->addSuccess(
                     Mage::helper('sitemap')->__('The sitemap has been deleted.'),
                 );
+                if ($keepFile) {
+                    Mage::getSingleton('adminhtml/session')->addNotice(
+                        Mage::helper('sitemap')->__('The sitemap file was not deleted because its path is not permitted.'),
+                    );
+                }
+
                 // go to grid
                 $this->_redirect('*/*/');
                 return;

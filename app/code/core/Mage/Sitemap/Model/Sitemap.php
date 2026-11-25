@@ -63,6 +63,13 @@ class Mage_Sitemap_Model_Sitemap extends Mage_Core_Model_Abstract
         }
 
         /**
+         * Check the normalised path, which is the one stored and written to, against the path lists
+         */
+        $sitemapPath = rtrim(str_replace(str_replace('\\', '/', Mage::getBaseDir()), '', $realPath), '/') . '/';
+        $sitemapFilename = (string) $this->getSitemapFilename();
+        $this->_validatePath($sitemapPath, str_ends_with($sitemapFilename, '.xml') ? $sitemapFilename : $sitemapFilename . '.xml');
+
+        /**
          * Check exists and writeable path
          */
         if (!$ioFile->fileExists($realPath, false)) {
@@ -84,19 +91,67 @@ class Mage_Sitemap_Model_Sitemap extends Mage_Core_Model_Abstract
             $this->setSitemapFilename($this->getSitemapFilename() . '.xml');
         }
 
-        $this->setSitemapPath(rtrim(str_replace(str_replace('\\', '/', Mage::getBaseDir()), '', $realPath), '/') . '/');
+        $this->setSitemapPath($sitemapPath);
 
         return parent::_beforeSave();
     }
 
     /**
+     * Check that the sitemap file is in a permitted directory
+     *
+     * The admin form validates the path as posted, but the path is normalised before it is
+     * stored, and rows can be written by other code, so the stored path is checked again
+     * wherever the file is written or deleted (GHSA-7w9h-fhg7-6v5q).
+     *
+     * @throws Mage_Core_Exception
+     */
+    public function validatePath(): void
+    {
+        $this->_validatePath((string) $this->getSitemapPath(), (string) $this->getSitemapFilename());
+    }
+
+    /**
+     * Validate a sitemap path and file name against the sitemap path lists
+     *
+     * @throws Mage_Core_Exception
+     */
+    protected function _validatePath(string $path, string $filename): void
+    {
+        /** @var Mage_Core_Model_File_Validator_AvailablePath $validator */
+        $validator = Mage::getModel('core/file_validator_availablePath');
+        /** @var Mage_Adminhtml_Helper_Catalog $helper */
+        $helper = Mage::helper('adminhtml/catalog');
+        $validator->setPaths($helper->getSitemapValidPaths());
+        if (!$validator->isValid(rtrim($path, '\\/') . '/' . $filename)) {
+            Mage::throwException(implode("\n", $validator->getMessages()));
+        }
+    }
+
+    /**
+     * Whether the sitemap file is in a permitted directory
+     */
+    public function isPathAllowed(): bool
+    {
+        try {
+            $this->validatePath();
+        } catch (Mage_Core_Exception) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Return real file path
+     *
+     * Computed on every call so that it always follows the current sitemap_path, which is
+     * the value validatePath() checks.
      *
      * @return string
      */
     protected function getPath()
     {
-        $this->_filePath ??= str_replace('//', '/', Mage::getBaseDir()
+        $this->_filePath = str_replace('//', '/', Mage::getBaseDir()
             . $this->getSitemapPath());
 
         return $this->_filePath;
@@ -120,6 +175,8 @@ class Mage_Sitemap_Model_Sitemap extends Mage_Core_Model_Abstract
      */
     public function generateXml()
     {
+        $this->validatePath();
+
         $ioFile = new Varien_Io_File();
         $ioFile->setAllowCreateFolders(true);
         $ioFile->open(['path' => $this->getPath()]);

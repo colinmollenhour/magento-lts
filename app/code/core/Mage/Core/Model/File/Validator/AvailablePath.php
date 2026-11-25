@@ -198,15 +198,20 @@ class Mage_Core_Model_File_Validator_AvailablePath extends Mage_Core_Model_Valid
      */
     public function isValid($value)
     {
-        $value = trim($value);
+        $value = trim((string) $value);
         $this->_setValue($value);
 
         if (!$this->_availablePaths && !$this->_protectedPaths) {
             throw new Exception(Mage::helper('core')->__('Please set available and/or protected paths list(s) before validation.'));
         }
 
-        if (preg_match('#\.\.[\\\/]#', $this->_value)) {
+        if (preg_match('#\.\.[\\\/]#', $this->_value) === 1 || preg_match('#(^|[\\\\/])\.\.$#', $this->_value) === 1) {
             $this->_error(self::PROTECTED_LFI, $this->_value);
+            return false;
+        }
+
+        if (str_contains($this->_value, chr(0)) || $this->_hasSchemeOrDrive($this->_value)) {
+            $this->_error(self::NOT_AVAILABLE_PATH, $this->_value);
             return false;
         }
 
@@ -220,7 +225,7 @@ class Mage_Core_Model_File_Validator_AvailablePath extends Mage_Core_Model_Valid
             static fn($extension): string => strtolower(trim((string) $extension)),
             (array) $protectedExtensions,
         );
-        $value = str_replace(['/', '\\'], DS, $this->_value);
+        $value = $this->_normalizePath($this->_value);
         $valuePathInfo = pathinfo(ltrim($value, '\\/'));
         $fileNameExtension = pathinfo($valuePathInfo['filename'], PATHINFO_EXTENSION);
 
@@ -247,6 +252,51 @@ class Mage_Core_Model_File_Validator_AvailablePath extends Mage_Core_Model_Valid
     }
 
     /**
+     * Check whether any segment of a path starts with a URL scheme or a drive letter
+     *
+     * PHP hands a name that starts with "scheme://" (or "data:") to a stream wrapper, and
+     * callers often pass only the tail of the validated value to the file system, so a
+     * scheme is refused wherever it appears. A drive letter is a one letter scheme.
+     *
+     * @param  string $path
+     * @return bool
+     */
+    protected function _hasSchemeOrDrive($path)
+    {
+        foreach ((array) preg_split('#[\\\\/]#', (string) $path) as $segment) {
+            if (preg_match('#^[a-z][a-z0-9+.\-]*:#i', (string) $segment) === 1) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Normalise a path before it is matched against the masks
+     *
+     * The masks are compared as strings, so every spelling of a directory must reduce to
+     * one form: separators become DS, repeated separators collapse and "." segments are
+     * dropped. Otherwise "./app/etc/" or "app//etc/" would not match a mask for "app",
+     * while the file system and Varien_Io_File::getCleanPath() treat them as "app/etc/".
+     * Parent traversal has been refused before this runs.
+     *
+     * @param  string $path
+     * @return string
+     */
+    protected function _normalizePath($path)
+    {
+        $segments = [];
+        foreach ((array) preg_split('#[\\\\/]+#', (string) $path) as $segment) {
+            if ($segment !== '' && $segment !== '.') {
+                $segments[] = $segment;
+            }
+        }
+
+        return implode(DS, $segments);
+    }
+
+    /**
      * Validate value by path masks
      *
      * @param  array $valuePathInfo Path info from value path
@@ -256,6 +306,8 @@ class Mage_Core_Model_File_Validator_AvailablePath extends Mage_Core_Model_Valid
      */
     protected function _isValidByPaths($valuePathInfo, $paths, $protected)
     {
+        // A protected directory stays protected on a case-insensitive file system
+        $modifiers = $protected ? 'i' : '';
         foreach ($paths as $path) {
             $path = ltrim($path, '\\/');
             if (!isset($this->_pathsData[$path]['regFilename'])) {
@@ -280,7 +332,7 @@ class Mage_Core_Model_File_Validator_AvailablePath extends Mage_Core_Model_Valid
                     $reg = $options['file_mask'];
                     $reg = str_replace('.', '\.', $reg);
                     $reg = str_replace('*', '.*?', $reg);
-                    $reg = "/^({$reg})$/";
+                    $reg = "/^({$reg})$/{$modifiers}";
                 } else {
                     $reg = $this->_pathsData[$path]['regFilename'];
                 }
@@ -300,7 +352,7 @@ class Mage_Core_Model_File_Validator_AvailablePath extends Mage_Core_Model_Valid
                 $reg = str_replace(DS, '[\\' . DS . ']', $reg);
                 $reg = str_replace('?', '([^\\' . DS . ']+)', $reg);
                 $reg = str_replace('||', '(.*[\\' . DS . '])?', $reg);
-                $reg = "/^{$reg}$/";
+                $reg = "/^{$reg}$/{$modifiers}";
             } else {
                 $reg = $this->_pathsData[$path]['regDir'];
             }
