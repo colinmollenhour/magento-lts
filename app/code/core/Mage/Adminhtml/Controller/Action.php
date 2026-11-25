@@ -211,7 +211,7 @@ class Mage_Adminhtml_Controller_Action extends Mage_Core_Controller_Varien_Actio
         }
 
         if (!$this->getFlag('', self::FLAG_IS_URLS_CHECKED)
-            && !$this->getRequest()->getParam('forwarded')
+            && !$this->getRequest()->getInternallyForwarded()
             && !$this->_getSession()->getIsUrlNotice(true)
             && !Mage::getConfig()->getNode('global/can_use_base_url')
         ) {
