@@ -76,11 +76,13 @@ class Mage_Admin_Model_Observer
                     $request->setInternallyForwarded();
                     if ($request->getParam('isIframe')) {
                         $request->setParam('forwarded', true)
+                            ->setRouteName('adminhtml')
                             ->setControllerName('index')
                             ->setActionName('deniedIframe')
                             ->setDispatched(false);
                     } elseif ($request->getParam('isAjax')) {
                         $request->setParam('forwarded', true)
+                            ->setRouteName('adminhtml')
                             ->setControllerName('index')
                             ->setActionName('deniedJson')
                             ->setDispatched(false);
