@@ -99,6 +99,30 @@
                     <type>text</type>
                 </design_email_footer>
             </email>
+            <!--
+                Methods that {{var}}, {{depend}} and {{if}} expressions in email, newsletter, CMS and
+                widget templates may call with arguments (Varien_Filter_Template::_isMethodCallAllowed()).
+                Without arguments, only methods named get*, is* or has* may be called. An entry allows the
+                method on the class and its subclasses. Modules declare the methods their templates call.
+            -->
+            <variable_methods>
+                <core_store_getconfig>
+                    <class>Mage_Core_Model_Store</class>
+                    <method>getConfig</method>
+                </core_store_getconfig>
+                <core_store_geturl>
+                    <class>Mage_Core_Model_Store</class>
+                    <method>getUrl</method>
+                </core_store_geturl>
+                <customer_address_format>
+                    <class>Mage_Customer_Model_Address_Abstract</class>
+                    <method>format</method>
+                </customer_address_format>
+                <sales_order_getcreatedatformated>
+                    <class>Mage_Sales_Model_Order</class>
+                    <method>getCreatedAtFormated</method>
+                </sales_order_getcreatedatformated>
+            </variable_methods>
         </template>
         <cache>
             <types>
