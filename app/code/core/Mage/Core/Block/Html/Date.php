@@ -42,20 +42,21 @@ class Mage_Core_Block_Html_Date extends Mage_Core_Block_Template
     {
         $displayFormat = Varien_Date::convertZendToStrftime($this->getFormat(), true, (bool) $this->getTime());
 
-        $html  = '<input type="text" name="' . $this->getName() . '" id="' . $this->getId() . '" ';
-        $html .= 'value="' . $this->escapeHtml($this->getValue()) . '" class="' . $this->getClass() . '" ' . $this->getExtraParams() . '/> ';
+        $id = (string) $this->getId();
+        $html  = '<input type="text" name="' . $this->escapeHtml((string) $this->getName()) . '" id="' . $this->escapeHtml($id) . '" ';
+        $html .= 'value="' . $this->escapeHtml($this->getValue()) . '" class="' . $this->escapeHtml((string) $this->getClass()) . '" ' . $this->getExtraParams() . '/> ';
 
         $html .= '<img src="' . $this->getImage() . '" alt="' . $this->helper('core')->__('Select Date') . '" class="v-middle" ';
-        $html .= 'title="' . $this->helper('core')->__('Select Date') . '" id="' . $this->getId() . '_trig" />';
+        $html .= 'title="' . $this->helper('core')->__('Select Date') . '" id="' . $this->escapeHtml($id . '_trig') . '" />';
 
         $html
         .= '<script type="text/javascript">
         //<![CDATA[
             var calendarSetupObject = {
-                inputField  : "' . $this->getId() . '",
+                inputField  : ' . $this->_jsString($id) . ',
                 ifFormat    : "' . $displayFormat . '",
                 showsTime   : ' . ($this->getTime() ? 'true' : 'false') . ',
-                button      : "' . $this->getId() . '_trig",
+                button      : ' . $this->_jsString($id . '_trig') . ',
                 align       : "Bl",
                 singleClick : true
             }';
@@ -71,6 +72,14 @@ class Mage_Core_Block_Html_Date extends Mage_Core_Block_Template
             Calendar.setup(calendarSetupObject);
         //]]>
         </script>';
+    }
+
+    /**
+     * Quote a value as a JavaScript string literal that cannot close the surrounding script element
+     */
+    protected function _jsString(string $value): string
+    {
+        return (string) json_encode($value, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE);
     }
 
     /**

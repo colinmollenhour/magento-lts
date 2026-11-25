@@ -140,8 +140,9 @@ class Mage_Core_Block_Html_Select extends Mage_Core_Block_Abstract
             return '';
         }
 
-        $html = '<select name="' . $this->getName() . '" id="' . $this->getId() . '" class="'
-            . $this->getClass() . '" title="' . $this->getTitle() . '" ' . $this->getExtraParams() . '>';
+        $html = '<select name="' . $this->escapeHtml((string) $this->getName()) . '" id="' . $this->escapeHtml((string) $this->getId())
+            . '" class="' . $this->escapeHtml((string) $this->getClass()) . '" title="' . $this->escapeHtml((string) $this->getTitle()) . '" '
+            . $this->getExtraParams() . '>';
         $values = $this->getValue();
 
         if (!is_array($values)) {
@@ -162,7 +163,7 @@ class Mage_Core_Block_Html_Select extends Mage_Core_Block_Abstract
             }
 
             if (is_array($value)) {
-                $html .= '<optgroup label="' . $label . '">';
+                $html .= '<optgroup label="' . $this->escapeHtml($label) . '">';
                 foreach ($value as $keyGroup => $optionGroup) {
                     if (!is_array($optionGroup)) {
                         $optionGroup = [

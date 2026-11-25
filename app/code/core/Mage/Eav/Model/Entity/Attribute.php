@@ -37,6 +37,14 @@ class Mage_Eav_Model_Entity_Attribute extends Mage_Eav_Model_Entity_Attribute_Ab
     public const ATTRIBUTE_CODE_MAX_LENGTH                 = 30;
 
     /**
+     * Format of a new or renamed attribute code
+     *
+     * Static attribute codes are used as column names in SQL, so a code may contain only identifier characters.
+     * The admin attribute editor and the API are stricter and accept only lowercase codes.
+     */
+    public const ATTRIBUTE_CODE_PATTERN = '/^[a-zA-Z][a-zA-Z0-9_]*$/D';
+
+    /**
      * Parameter name in event
      *
      * In observe method you can use $observer->getEvent()->getAttribute() in this case
@@ -145,6 +153,16 @@ class Mage_Eav_Model_Entity_Attribute extends Mage_Eav_Model_Entity_Attribute_Ab
             throw Mage::exception('Mage_Eav', Mage::helper('eav')->__('Maximum length of attribute code must be less then %s symbols', self::ATTRIBUTE_CODE_MAX_LENGTH));
         }
 
+        /*
+         * Check the format of a new or changed attribute_code; codes already stored are not checked again
+         */
+        if (isset($this->_data['attribute_code']) && $this->_isAttributeCodeChanged()
+            && (!is_string($this->_data['attribute_code'])
+                || preg_match(self::ATTRIBUTE_CODE_PATTERN, $this->_data['attribute_code']) !== 1)
+        ) {
+            throw Mage::exception('Mage_Eav', Mage::helper('core')->__('Please use only letters (a-z or A-Z), numbers (0-9) or underscore(_) in this field, first character should be a letter.'));
+        }
+
         $defaultValue   = $this->getDefaultValue();
         $hasDefaultValue = ((string) $defaultValue !== '');
 
@@ -190,6 +208,19 @@ class Mage_Eav_Model_Entity_Attribute extends Mage_Eav_Model_Entity_Attribute_Ab
         }
 
         return parent::_beforeSave();
+    }
+
+    /**
+     * Whether the attribute is new or its loaded attribute_code was changed
+     */
+    protected function _isAttributeCodeChanged(): bool
+    {
+        if ($this->isObjectNew()) {
+            return true;
+        }
+
+        $origCode = $this->getOrigData('attribute_code');
+        return $origCode !== null && $origCode !== $this->_getData('attribute_code');
     }
 
     /**
