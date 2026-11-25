@@ -16,6 +16,7 @@ use Mage_Core_Exception;
 use Mage_Dataflow_Model_Profile as Subject;
 use OpenMage\Tests\Unit\OpenMageTest;
 use OpenMage\Tests\Unit\Traits\DataProvider\Mage\Dataflow\Model\ProfileTrait;
+use ReflectionMethod;
 use SimpleXMLElement;
 
 final class ProfileTest extends OpenMageTest
@@ -70,6 +71,31 @@ final class ProfileTest extends OpenMageTest
 
         $this->expectException(Mage_Core_Exception::class);
         $subject->_parseGuiData();
+    }
+
+    /**
+     * The wizard file name ends up in the Io adapter, so the same rules apply on save (GHSA-gc76-8qvx-h92g)
+     *
+     * @group Model
+     */
+    public function testBeforeSaveRefusesWizardFileNameOutsidePath(): void
+    {
+        /** @var Subject $subject */
+        $subject = Mage::getModel('dataflow/profile');
+        $subject->setData([
+            'entity_type' => 'product',
+            'direction' => 'export',
+            'gui_data' => [
+                'file' => ['type' => 'file', 'path' => 'var/export', 'filename' => 'file:///tmp/export.csv'],
+                'parse' => ['type' => 'csv'],
+            ],
+        ]);
+
+        $this->expectException(Mage_Core_Exception::class);
+        $this->expectExceptionMessage('must be a relative name below the configured path');
+
+        $method = new ReflectionMethod(Subject::class, '_beforeSave');
+        $method->invoke($subject);
     }
 
     private function xpathLiteral(string $value): string
