@@ -170,15 +170,74 @@ class Mage_Dataflow_Model_Batch extends Mage_Core_Model_Abstract
 
     /**
      * Run finish actions for Adapter
+     *
+     * @throws Exception
      */
     public function beforeFinish()
     {
         if ($this->getAdapter()) {
-            $adapter = Mage::getModel($this->getAdapter());
+            $adapter = $this->getAdapterInstance();
             if (method_exists($adapter, 'finish')) {
                 $adapter->finish();
             }
         }
+    }
+
+    /**
+     * Instantiate the import adapter stored with this batch
+     *
+     * @throws Mage_Core_Exception
+     */
+    public function getAdapterInstance(): Mage_Dataflow_Model_Convert_Adapter_Interface
+    {
+        return self::createAdapter($this->getAdapter());
+    }
+
+    /**
+     * Instantiate a Dataflow import adapter from a model alias or class name
+     *
+     * The name comes from the adapter variable of profile actions XML, which an admin with the
+     * Advanced Profiles permission controls, so the class is checked before it is constructed
+     * (GHSA-22f6-grcr-2h6g).
+     *
+     * @param  mixed               $adapter model alias or class name
+     * @throws Mage_Core_Exception
+     */
+    public static function createAdapter($adapter): Mage_Dataflow_Model_Convert_Adapter_Interface
+    {
+        if (!is_string($adapter) || !self::isAdapterAllowed($adapter)) {
+            Mage::throwException(
+                Mage::helper('dataflow')->__('The declared adapter was not found or is not a Dataflow adapter.'),
+            );
+        }
+
+        $instance = Mage::getModel($adapter);
+        if (!$instance instanceof Mage_Dataflow_Model_Convert_Adapter_Interface) {
+            Mage::throwException(
+                Mage::helper('dataflow')->__('The declared adapter was not found or is not a Dataflow adapter.'),
+            );
+        }
+
+        return $instance;
+    }
+
+    /**
+     * Whether a model alias or class name resolves to an instantiable Dataflow adapter, without constructing it
+     *
+     * @param mixed $adapter model alias or class name
+     */
+    public static function isAdapterAllowed($adapter): bool
+    {
+        if (!is_string($adapter) || trim($adapter) === '') {
+            return false;
+        }
+
+        $className = Mage::getConfig()?->getModelClassName($adapter);
+        if (!is_string($className) || !is_subclass_of($className, Mage_Dataflow_Model_Convert_Adapter_Interface::class)) {
+            return false;
+        }
+
+        return (new ReflectionClass($className))->isInstantiable();
     }
 
     /**

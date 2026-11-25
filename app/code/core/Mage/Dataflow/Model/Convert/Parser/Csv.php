@@ -43,11 +43,9 @@ class Mage_Dataflow_Model_Convert_Parser_Csv extends Mage_Dataflow_Model_Convert
         }
 
         try {
-            $adapter = Mage::getModel($adapterName);
-        } catch (Exception) {
-            $message = Mage::helper('dataflow')
-                ->__('Declared adapter %s was not found.', $adapterName);
-            $this->addException($message, Mage_Dataflow_Model_Convert_Exception::FATAL);
+            $adapter = Mage_Dataflow_Model_Batch::createAdapter($adapterName);
+        } catch (Mage_Core_Exception $mageCoreException) {
+            $this->addException($mageCoreException->getMessage(), Mage_Dataflow_Model_Convert_Exception::FATAL);
             return $this;
         }
 

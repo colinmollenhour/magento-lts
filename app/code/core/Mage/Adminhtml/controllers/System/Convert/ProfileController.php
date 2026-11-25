@@ -255,8 +255,17 @@ class Mage_Adminhtml_System_Convert_ProfileController extends Mage_Adminhtml_Con
 
             $batchImportModel = $batchModel->getBatchImportModel();
 
-            /** @var Mage_Catalog_Model_Convert_Adapter_Product $adapter */
-            $adapter = Mage::getModel($batchModel->getAdapter());
+            try {
+                /** @var Mage_Catalog_Model_Convert_Adapter_Product $adapter */
+                $adapter = $batchModel->getAdapterInstance();
+            } catch (Mage_Core_Exception $mageCoreException) {
+                $this->getResponse()->setBody(Mage::helper('core')->jsonEncode([
+                    'savedRows' => 0,
+                    'errors'    => [$mageCoreException->getMessage()],
+                ]));
+                return;
+            }
+
             $adapter->setBatchParams($batchModel->getParams());
 
             $errors = [];
