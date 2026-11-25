@@ -66,6 +66,34 @@ abstract class Mage_Payment_Model_Method_Abstract extends Varien_Object
 
     public const CHECK_ZERO_TOTAL            = 128;
 
+    /**
+     * Payment info fields that hold state set by the store, the payment method or the gateway, never by the
+     * customer. assignData() does not copy them from the submitted payment data; a method that needs one of them
+     * sets it in its own assignData() after validating it. Subclasses may extend the list.
+     *
+     * @see Mage_Payment_Model_Method_Abstract::assignData()
+     */
+    public const INTERNAL_INFO_KEYS = [
+        // record ids and links
+        'entity_id', 'payment_id', 'parent_id', 'quote_id', 'quote_payment_id', 'customer_payment_id', 'store_id',
+        'created_at', 'updated_at', 'method_instance',
+        // state kept by the payment method
+        'additional_information', 'additional_data', 'cc_number_enc', 'cc_cid_enc',
+        // amounts
+        'amount_ordered', 'base_amount_ordered', 'amount_authorized', 'base_amount_authorized',
+        'amount_paid', 'base_amount_paid', 'base_amount_paid_online',
+        'amount_refunded', 'base_amount_refunded', 'base_amount_refunded_online',
+        'amount_canceled', 'base_amount_canceled',
+        'shipping_amount', 'base_shipping_amount', 'shipping_captured', 'base_shipping_captured',
+        'shipping_refunded', 'base_shipping_refunded',
+        // transactions and gateway results
+        'last_trans_id', 'cc_trans_id', 'transaction_id', 'parent_transaction_id',
+        'cc_approval', 'cc_avs_status', 'cc_cid_status', 'cc_status', 'cc_status_description', 'cc_secure_verify',
+        'cc_debug_request_body', 'cc_debug_response_body', 'cc_debug_response_serialized',
+        'anet_trans_method', 'account_status', 'address_status', 'protection_eligibility', 'paybox_request_number',
+        'paypal_payer_id', 'paypal_payer_status', 'paypal_correlation_id',
+    ];
+
     protected $_code;
 
     protected $_formBlockType = 'payment/form';
@@ -639,15 +667,19 @@ abstract class Mage_Payment_Model_Method_Abstract extends Varien_Object
     /**
      * Assign data to info model instance
      *
+     * Copies the submitted payment data except the fields in INTERNAL_INFO_KEYS.
+     *
      * @param  mixed $data
      * @return $this
      */
     public function assignData($data)
     {
+        if ($data instanceof Varien_Object) {
+            $data = $data->getData();
+        }
+
         if (is_array($data)) {
-            $this->getInfoInstance()->addData($data);
-        } elseif ($data instanceof Varien_Object) {
-            $this->getInfoInstance()->addData($data->getData());
+            $this->getInfoInstance()->addData(array_diff_key($data, array_flip(static::INTERNAL_INFO_KEYS)));
         }
 
         return $this;

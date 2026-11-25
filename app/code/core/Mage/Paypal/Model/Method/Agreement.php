@@ -293,12 +293,15 @@ class Mage_Paypal_Model_Method_Agreement extends Mage_Sales_Model_Payment_Method
     protected function _placeOrder(Mage_Sales_Model_Order_Payment $payment, $amount)
     {
         $order = $payment->getOrder();
-        /** @var Mage_Sales_Model_Billing_Agreement $billingAgreement */
-        $billingAgreement = Mage::getModel('sales/billing_agreement')->load(
-            $payment->getAdditionalInformation(
-                Mage_Sales_Model_Payment_Method_Billing_AgreementAbstract::TRANSPORT_BILLING_AGREEMENT_ID,
-            ),
+        // The agreement id comes from stored payment data, so check the owner and status again before charging it
+        $billingAgreement = $this->_loadBillingAgreement(
+            $payment->getAdditionalInformation(self::TRANSPORT_BILLING_AGREEMENT_ID),
         );
+        if (!$billingAgreement instanceof Mage_Sales_Model_Billing_Agreement
+            || !$billingAgreement->canBeUsedByCustomer($order->getCustomerId())
+        ) {
+            Mage::throwException(Mage::helper('sales')->__('Wrong billing agreement ID specified.'));
+        }
 
         $proConfig = $this->_pro->getConfig();
         $api = $this->_pro->getApi()

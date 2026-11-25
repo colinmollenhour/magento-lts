@@ -64,6 +64,9 @@ abstract class Mage_Sales_Model_Payment_Method_Billing_AgreementAbstract extends
     /**
      * Assign data to info model instance
      *
+     * The billing agreement fields of the additional information are set only from the transport field, and only
+     * when the agreement belongs to the quote customer and is active. Values submitted any other way are cleared.
+     *
      * @param  mixed                              $data
      * @return Mage_Payment_Model_Method_Abstract
      * @throws Mage_Core_Exception
@@ -74,23 +77,56 @@ abstract class Mage_Sales_Model_Payment_Method_Billing_AgreementAbstract extends
         $result = parent::assignData($data);
 
         $key = self::TRANSPORT_BILLING_AGREEMENT_ID;
-        $id = false;
-        if (is_array($data) && isset($data[$key])) {
-            $id = $data[$key];
-        } elseif ($data instanceof Varien_Object && $data->getData($key)) {
+        $id = null;
+        if (is_array($data)) {
+            $id = $data[$key] ?? null;
+        } elseif ($data instanceof Varien_Object) {
             $id = $data->getData($key);
         }
 
-        if ($id) {
-            $info = $this->getInfoInstance();
-            $agreement = Mage::getModel('sales/billing_agreement')->load($id);
-            if ($agreement->getId() && $agreement->getCustomerId() == $info->getQuote()->getCustomer()->getId()) {
-                $info->setAdditionalInformation($key, $id)
-                    ->setAdditionalInformation(self::PAYMENT_INFO_REFERENCE_ID, $agreement->getReferenceId());
-            }
+        $info = $this->getInfoInstance();
+        $additionalInformation = $info->getAdditionalInformation();
+        if (!is_array($additionalInformation)) {
+            $additionalInformation = [];
         }
 
+        unset($additionalInformation[$key], $additionalInformation[self::PAYMENT_INFO_REFERENCE_ID]);
+        $info->setAdditionalInformation($additionalInformation);
+
+        if ($id === null || $id === '') {
+            return $result;
+        }
+
+        $agreement = $this->_loadBillingAgreement($id);
+        if (!$agreement instanceof Mage_Sales_Model_Billing_Agreement
+            || !$agreement->canBeUsedByCustomer($info->getQuote()->getCustomer()->getId())
+        ) {
+            Mage::throwException(Mage::helper('sales')->__('Wrong billing agreement ID specified.'));
+        }
+
+        $info->setAdditionalInformation($key, $agreement->getId())
+            ->setAdditionalInformation(self::PAYMENT_INFO_REFERENCE_ID, $agreement->getReferenceId());
+
         return $result;
+    }
+
+    /**
+     * Load a billing agreement by id
+     *
+     * Does not check the owner or status: use Mage_Sales_Model_Billing_Agreement::canBeUsedByCustomer() for that.
+     *
+     * @param  mixed                                   $agreementId
+     * @return null|Mage_Sales_Model_Billing_Agreement null when the id is empty, not an int or string, or unknown
+     */
+    protected function _loadBillingAgreement($agreementId)
+    {
+        if ((!is_int($agreementId) && !is_string($agreementId)) || in_array($agreementId, [0, '', '0'], true)) {
+            return null;
+        }
+
+        /** @var Mage_Sales_Model_Billing_Agreement $agreement */
+        $agreement = Mage::getModel('sales/billing_agreement')->load($agreementId);
+        return $agreement->getId() === null ? null : $agreement;
     }
 
     /**

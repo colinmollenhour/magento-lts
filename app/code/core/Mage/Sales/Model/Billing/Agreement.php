@@ -143,6 +143,20 @@ class Mage_Sales_Model_Billing_Agreement extends Mage_Payment_Model_Billing_Agre
     }
 
     /**
+     * Check whether the customer may pay with this agreement: it must exist, belong to the customer and be active
+     *
+     * @param  null|int|string $customerId
+     * @return bool
+     */
+    public function canBeUsedByCustomer($customerId)
+    {
+        return (int) $this->getId() > 0
+            && (int) $customerId > 0
+            && (int) $this->getCustomerId() === (int) $customerId
+            && $this->getStatus() === self::STATUS_ACTIVE;
+    }
+
+    /**
      * Create billing agreement
      *
      * @return $this
