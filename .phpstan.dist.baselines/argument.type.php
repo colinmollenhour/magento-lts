@@ -2982,11 +2982,6 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/code/core/Mage/Core/Helper/Abstract.php',
 ];
 $ignoreErrors[] = [
-    'rawMessage' => 'Parameter #1 $string of function strip_tags expects string, string|null given.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/code/core/Mage/Core/Helper/Abstract.php',
-];
-$ignoreErrors[] = [
     'rawMessage' => 'Parameter #2 $allowedTags of method Mage_Core_Helper_Abstract::escapeHtml() expects array<string>|null, array<string>|string|null given.',
     'count' => 1,
     'path' => __DIR__ . '/../app/code/core/Mage/Core/Helper/Abstract.php',
@@ -3942,11 +3937,6 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/code/core/Mage/Customer/data/customer_setup/data-upgrade-1.6.2.0.4-1.6.2.0.5.php',
 ];
 $ignoreErrors[] = [
-    'rawMessage' => 'Parameter #1 $object_or_class of function method_exists expects object|string, object|false given.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/code/core/Mage/Dataflow/Model/Batch.php',
-];
-$ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 $string of function strlen expects string, bool|string given.',
     'count' => 1,
     'path' => __DIR__ . '/../app/code/core/Mage/Dataflow/Model/Batch/Io.php',
@@ -3992,19 +3982,9 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/code/core/Mage/Dataflow/Model/Convert/Parser/Abstract.php',
 ];
 $ignoreErrors[] = [
-    'rawMessage' => 'Parameter #1 $object_or_class of function method_exists expects object|string, object|false given.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/code/core/Mage/Dataflow/Model/Convert/Parser/Csv.php',
-];
-$ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 $value of function count expects array|Countable, array|string|null given.',
     'count' => 1,
     'path' => __DIR__ . '/../app/code/core/Mage/Dataflow/Model/Convert/Parser/Csv.php',
-];
-$ignoreErrors[] = [
-    'rawMessage' => 'Parameter #1 $object_or_class of function method_exists expects object|string, object|false given.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/code/core/Mage/Dataflow/Model/Convert/Parser/Xml/Excel.php',
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Parameter #3 $subject of function str_replace expects array<string>|string, string|false given.',
@@ -8055,11 +8035,6 @@ $ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 $string of function trim expects string, int<min, -1>|int<1, max>|string given.',
     'count' => 1,
     'path' => __DIR__ . '/../lib/Varien/Data/Form/Element/Abstract.php',
-];
-$ignoreErrors[] = [
-    'rawMessage' => 'Parameter #2 $subject of function preg_match expects string, string|null given.',
-    'count' => 1,
-    'path' => __DIR__ . '/../lib/Varien/Data/Form/Element/Image.php',
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 $index of method Varien_Data_Form_Element_Abstract::getEscapedValue() expects string|null, int<0, max> given.',

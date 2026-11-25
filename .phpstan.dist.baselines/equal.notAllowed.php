@@ -4427,11 +4427,6 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/code/core/Mage/Sales/Model/Order/Status/History.php',
 ];
 $ignoreErrors[] = [
-    'rawMessage' => 'Loose comparison via "==" between mixed and mixed is not allowed.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/code/core/Mage/Sales/Model/Payment/Method/Billing/AgreementAbstract.php',
-];
-$ignoreErrors[] = [
     'rawMessage' => 'Loose comparison via "==" between int|string|null and int is not allowed.',
     'count' => 4,
     'path' => __DIR__ . '/../app/code/core/Mage/Sales/Model/Quote.php',

@@ -352,6 +352,11 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/design/adminhtml/base/default/template/catalog/category/edit/form.phtml',
 ];
 $ignoreErrors[] = [
+    'rawMessage' => 'Binary operation "." between array<string|null>|string|null and \' \' results in an error.',
+    'count' => 6,
+    'path' => __DIR__ . '/../app/design/adminhtml/base/default/template/sales/order/shipment/packaging/packed.phtml',
+];
+$ignoreErrors[] = [
     'rawMessage' => 'Binary operation "." between \' (\' and array<string|null>|string|null results in an error.',
     'count' => 1,
     'path' => __DIR__ . '/../app/design/adminhtml/base/default/template/sales/order/view/info.phtml',

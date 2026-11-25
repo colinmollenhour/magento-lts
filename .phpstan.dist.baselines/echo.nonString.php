@@ -163,6 +163,11 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
+    'count' => 2,
+    'path' => __DIR__ . '/../app/design/adminhtml/base/default/template/catalog/product/tab/inventory.phtml',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
     'count' => 1,
     'path' => __DIR__ . '/../app/design/adminhtml/base/default/template/currencysymbol/grid.phtml',
 ];
@@ -210,6 +215,11 @@ $ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array<string>|string) of echo cannot be converted to string.',
     'count' => 1,
     'path' => __DIR__ . '/../app/design/adminhtml/base/default/template/downloadable/product/edit/downloadable/links.phtml',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
+    'count' => 1,
+    'path' => __DIR__ . '/../app/design/adminhtml/base/default/template/downloadable/product/edit/downloadable/samples.phtml',
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
@@ -398,7 +408,12 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
-    'count' => 1,
+    'count' => 2,
+    'path' => __DIR__ . '/../app/design/adminhtml/base/default/template/sales/order/shipment/packaging/grid.phtml',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
+    'count' => 3,
     'path' => __DIR__ . '/../app/design/adminhtml/base/default/template/sales/order/shipment/packaging/packed.phtml',
 ];
 $ignoreErrors[] = [
@@ -438,7 +453,7 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
-    'count' => 1,
+    'count' => 2,
     'path' => __DIR__ . '/../app/design/adminhtml/base/default/template/sales/order/view/history.phtml',
 ];
 $ignoreErrors[] = [
@@ -542,9 +557,19 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/design/adminhtml/base/default/template/widget/grid/serializer.phtml',
 ];
 $ignoreErrors[] = [
+    'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
+    'count' => 1,
+    'path' => __DIR__ . '/../app/design/adminhtml/base/default/template/widget/tabs.phtml',
+];
+$ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array|string) of echo cannot be converted to string.',
     'count' => 1,
     'path' => __DIR__ . '/../app/design/adminhtml/base/default/template/widget/tabs.phtml',
+];
+$ignoreErrors[] = [
+    'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
+    'count' => 1,
+    'path' => __DIR__ . '/../app/design/adminhtml/base/default/template/widget/tabshoriz.phtml',
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array|string) of echo cannot be converted to string.',
@@ -713,7 +738,7 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
-    'count' => 5,
+    'count' => 16,
     'path' => __DIR__ . '/../app/design/frontend/base/default/template/catalogsearch/advanced/form.phtml',
 ];
 $ignoreErrors[] = [
@@ -732,33 +757,18 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/design/frontend/base/default/template/checkout/cart/crosssell.phtml',
 ];
 $ignoreErrors[] = [
-    'rawMessage' => 'Parameter #1 (array<string>|string) of echo cannot be converted to string.',
-    'count' => 1,
+    'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
+    'count' => 4,
     'path' => __DIR__ . '/../app/design/frontend/base/default/template/checkout/cart/item/default.phtml',
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
     'count' => 3,
-    'path' => __DIR__ . '/../app/design/frontend/base/default/template/checkout/cart/item/default.phtml',
-];
-$ignoreErrors[] = [
-    'rawMessage' => 'Parameter #1 (array<string>|string) of echo cannot be converted to string.',
-    'count' => 1,
     'path' => __DIR__ . '/../app/design/frontend/base/default/template/checkout/cart/render/default.phtml',
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
-    'count' => 2,
-    'path' => __DIR__ . '/../app/design/frontend/base/default/template/checkout/cart/render/default.phtml',
-];
-$ignoreErrors[] = [
-    'rawMessage' => 'Parameter #1 (array<string>|string) of echo cannot be converted to string.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/design/frontend/base/default/template/checkout/cart/render/simple.phtml',
-];
-$ignoreErrors[] = [
-    'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
-    'count' => 2,
+    'count' => 3,
     'path' => __DIR__ . '/../app/design/frontend/base/default/template/checkout/cart/render/simple.phtml',
 ];
 $ignoreErrors[] = [
@@ -777,13 +787,8 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/design/frontend/base/default/template/checkout/cart/sidebar/default.phtml',
 ];
 $ignoreErrors[] = [
-    'rawMessage' => 'Parameter #1 (array<string>|string) of echo cannot be converted to string.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/design/frontend/base/default/template/checkout/multishipping/addresses.phtml',
-];
-$ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
-    'count' => 1,
+    'count' => 2,
     'path' => __DIR__ . '/../app/design/frontend/base/default/template/checkout/multishipping/addresses.phtml',
 ];
 $ignoreErrors[] = [
@@ -912,13 +917,8 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/design/frontend/base/default/template/downloadable/catalog/product/samples.phtml',
 ];
 $ignoreErrors[] = [
-    'rawMessage' => 'Parameter #1 (array<string>|string) of echo cannot be converted to string.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/design/frontend/base/default/template/downloadable/checkout/cart/item/default.phtml',
-];
-$ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
-    'count' => 4,
+    'count' => 5,
     'path' => __DIR__ . '/../app/design/frontend/base/default/template/downloadable/checkout/cart/item/default.phtml',
 ];
 $ignoreErrors[] = [
@@ -1378,7 +1378,7 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
-    'count' => 5,
+    'count' => 16,
     'path' => __DIR__ . '/../app/design/frontend/rwd/default/template/catalogsearch/advanced/form.phtml',
 ];
 $ignoreErrors[] = [
@@ -1387,38 +1387,23 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/design/frontend/rwd/default/template/checkout/cart/crosssell.phtml',
 ];
 $ignoreErrors[] = [
-    'rawMessage' => 'Parameter #1 (array<string>|string) of echo cannot be converted to string.',
-    'count' => 1,
+    'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
+    'count' => 5,
     'path' => __DIR__ . '/../app/design/frontend/rwd/default/template/checkout/cart/item/default.phtml',
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
-    'count' => 4,
-    'path' => __DIR__ . '/../app/design/frontend/rwd/default/template/checkout/cart/item/default.phtml',
-];
-$ignoreErrors[] = [
-    'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
-    'count' => 1,
+    'count' => 2,
     'path' => __DIR__ . '/../app/design/frontend/rwd/default/template/checkout/cart/minicart/default.phtml',
 ];
 $ignoreErrors[] = [
-    'rawMessage' => 'Parameter #1 (array<string>|string) of echo cannot be converted to string.',
-    'count' => 1,
+    'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
+    'count' => 3,
     'path' => __DIR__ . '/../app/design/frontend/rwd/default/template/checkout/cart/render/default.phtml',
 ];
 $ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
-    'count' => 2,
-    'path' => __DIR__ . '/../app/design/frontend/rwd/default/template/checkout/cart/render/default.phtml',
-];
-$ignoreErrors[] = [
-    'rawMessage' => 'Parameter #1 (array<string>|string) of echo cannot be converted to string.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/design/frontend/rwd/default/template/checkout/cart/render/simple.phtml',
-];
-$ignoreErrors[] = [
-    'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
-    'count' => 2,
+    'count' => 3,
     'path' => __DIR__ . '/../app/design/frontend/rwd/default/template/checkout/cart/render/simple.phtml',
 ];
 $ignoreErrors[] = [
@@ -1437,13 +1422,8 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/design/frontend/rwd/default/template/checkout/cart/sidebar/default.phtml',
 ];
 $ignoreErrors[] = [
-    'rawMessage' => 'Parameter #1 (array<string>|string) of echo cannot be converted to string.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/design/frontend/rwd/default/template/checkout/multishipping/addresses.phtml',
-];
-$ignoreErrors[] = [
     'rawMessage' => 'Parameter #1 (array<string|null>|string|null) of echo cannot be converted to string.',
-    'count' => 1,
+    'count' => 2,
     'path' => __DIR__ . '/../app/design/frontend/rwd/default/template/checkout/multishipping/addresses.phtml',
 ];
 $ignoreErrors[] = [
