@@ -19,6 +19,13 @@ class Mage_Customer_Model_Customer_Api extends Mage_Customer_Model_Api_Resource
     ];
 
     /**
+     * Input keys create() accepts besides the allowed customer attributes
+     *
+     * @var string[]
+     */
+    protected $_createOnlyFields = ['password'];
+
+    /**
      * Prepare data to insert/update.
      * Creating array for stdClass Object
      *
@@ -40,27 +47,86 @@ class Mage_Customer_Model_Customer_Api extends Mage_Customer_Model_Api_Resource
     /**
      * Create new customer
      *
-     * @param  array               $customerData
+     * Always creates a new customer. A customer id in the input is refused, see _prepareDataForCreate().
+     *
+     * @param  array|stdClass      $customerData
      * @return int
+     * @throws Mage_Api_Exception
      * @throws Mage_Core_Exception
      */
     public function create($customerData)
     {
+        /** @var Mage_Customer_Model_Customer $customer */
         $customer = Mage::getModel('customer/customer');
-        $customerData = $this->_prepareData($customerData);
-        if (is_array($customerData) && array_key_exists('confirmation', $customerData)) {
-            $customerData['confirmation'] = $this->_prepareConfirmationForWrite($customer, $customerData['confirmation']);
+        $customer->setData($this->_prepareDataForCreate($customer, $customerData));
+
+        // defence in depth: whatever a subclass copies, create() never saves over an existing customer
+        if ($customer->getId() !== null) {
+            $this->_fault('data_invalid', $this->_getCustomerIdOnCreateMessage());
         }
 
         try {
-            $customer
-                ->setData($customerData)
-                ->save();
+            $customer->save();
         } catch (Mage_Core_Exception $mageCoreException) {
             $this->_fault('data_invalid', $mageCoreException->getMessage());
         }
 
         return $customer->getId();
+    }
+
+    /**
+     * Build the data create() sets on the new customer
+     *
+     * A customer id (customer_id, or entity_id) is refused rather than dropped, so a caller that relied
+     * on create() updating an existing customer gets a fault instead of a duplicate account. Like
+     * update(), only the attributes getAllowedAttributes() returns are copied, plus $_createOnlyFields.
+     *
+     * The id is checked on the raw input, because _prepareData() lets an empty customer_id replace a
+     * non-empty entity_id.
+     *
+     * @param  array<string, mixed>|stdClass $customerData raw API input
+     * @return array<string, mixed>
+     * @throws Mage_Api_Exception
+     * @throws Mage_Core_Exception
+     */
+    protected function _prepareDataForCreate(Mage_Customer_Model_Customer $customer, $customerData)
+    {
+        $input = is_object($customerData) ? get_object_vars($customerData) : $customerData;
+        if (!is_array($input)) {
+            $this->_fault('data_invalid');
+        }
+
+        foreach (['entity_id', ...array_keys($this->_mapAttributes)] as $idKey) {
+            if (!in_array($input[$idKey] ?? null, [null, '', 0, '0'], true)) {
+                $this->_fault('data_invalid', $this->_getCustomerIdOnCreateMessage());
+            }
+        }
+
+        // the V2 override of _prepareData() takes the stdClass
+        $customerData = $this->_prepareData($customerData); /** @phpstan-ignore argument.type */
+        $fields = [...array_keys($this->getAllowedAttributes($customer)), ...$this->_createOnlyFields];
+        $fields = array_diff($fields, ['entity_id', ...array_keys($this->_mapAttributes)]);
+
+        $data = [];
+        foreach ($fields as $field) {
+            if (array_key_exists($field, $customerData)) {
+                $data[$field] = $customerData[$field];
+            }
+        }
+
+        if (array_key_exists('confirmation', $data)) {
+            $data['confirmation'] = $this->_prepareConfirmationForWrite($customer, $data['confirmation']);
+        }
+
+        return $data;
+    }
+
+    /**
+     * @return string
+     */
+    protected function _getCustomerIdOnCreateMessage()
+    {
+        return Mage::helper('customer')->__('A customer ID cannot be set when creating a customer. Update the existing customer instead.');
     }
 
     /**

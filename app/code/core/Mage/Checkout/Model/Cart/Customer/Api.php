@@ -35,6 +35,7 @@ class Mage_Checkout_Model_Cart_Customer_Api extends Mage_Checkout_Model_Api_Reso
     {
         $quote = $this->_getQuote($quoteId, $store);
 
+        $rawCustomerData = $customerData;
         $customerData = $this->_prepareCustomerData($customerData);
         if (!isset($customerData['mode'])) {
             $this->_fault('customer_mode_is_unknown');
@@ -48,6 +49,15 @@ class Mage_Checkout_Model_Cart_Customer_Api extends Mage_Checkout_Model_Api_Reso
 
             case self::MODE_REGISTER:
             case self::MODE_GUEST:
+                // the new customer is saved when the order is placed, so an id would save over an existing customer
+                if ($this->_hasCustomerId($rawCustomerData) || $this->_hasCustomerId($customerData)) {
+                    $this->_fault(
+                        'customer_data_invalid',
+                        Mage::helper('checkout')->__('A customer ID cannot be set in register or guest mode. Use customer mode to assign an existing customer.'),
+                    );
+                }
+
+                unset($customerData['entity_id']);
                 $customer = Mage::getModel('customer/customer')
                 ->setData($customerData);
 
@@ -165,6 +175,30 @@ class Mage_Checkout_Model_Cart_Customer_Api extends Mage_Checkout_Model_Api_Reso
         }
 
         return true;
+    }
+
+    /**
+     * Check whether customer data sets a customer id (entity_id, or an alias such as customer_id)
+     *
+     * Empty values (null, '', 0, '0') do not count, so SOAP v2 clients may leave customer_id empty.
+     *
+     * @param  mixed $data customer data, raw (array or stdClass) or after _prepareCustomerData()
+     * @return bool
+     */
+    protected function _hasCustomerId($data)
+    {
+        $data = is_object($data) ? get_object_vars($data) : $data;
+        if (!is_array($data)) {
+            return false;
+        }
+
+        foreach (['entity_id', ...array_keys($this->_attributesMap['quote_customer'])] as $idKey) {
+            if (!in_array($data[$idKey] ?? null, [null, '', 0, '0'], true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
