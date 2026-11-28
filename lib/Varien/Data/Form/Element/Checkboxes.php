@@ -191,12 +191,12 @@ class Varien_Data_Form_Element_Checkboxes extends Varien_Data_Form_Element_Abstr
         $html = '<li><input id="' . $id . '"';
         foreach ($this->getHtmlAttributes() as $attribute) {
             if ($value = $this->getDataUsingMethod($attribute, $option['value'])) {
-                $html .= ' ' . $attribute . '="' . $value . '"';
+                $html .= ' ' . $attribute . '="' . $this->_escapeAttribute($value) . '"';
             }
         }
 
-        return $html . (' value="' . $option['value'] . '" />'
-            . ' <label for="' . $id . '">' . $option['label'] . '</label></li>'
+        return $html . (' value="' . $this->_escapeAttribute($option['value']) . '" />'
+            . ' <label for="' . $id . '">' . $this->_escape($option['label']) . '</label></li>'
             . "\n");
     }
 }

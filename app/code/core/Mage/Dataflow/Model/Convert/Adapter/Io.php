@@ -30,17 +30,8 @@ class Mage_Dataflow_Model_Convert_Adapter_Io extends Mage_Dataflow_Model_Convert
             $ioConfig = $this->getVars();
             switch (strtolower($this->getVar('type', 'file'))) {
                 case 'file':
-                    //validate export/import path
-                    $path = rtrim($ioConfig['path'], '\\/')
-                          . DS . $ioConfig['filename'];
-                    /** @var Mage_Core_Model_File_Validator_AvailablePath $validator */
-                    $validator = Mage::getModel('core/file_validator_availablePath');
-                    $validator->setPaths(Mage::getStoreConfig(self::XML_PATH_EXPORT_LOCAL_VALID_PATH));
-                    if (!$validator->isValid($path)) {
-                        foreach ($validator->getMessages() as $message) {
-                            Mage::throwException($message);
-                        }
-                    }
+                    $filename = (string) ($ioConfig['filename'] ?? '');
+                    self::validateLocalFileName($filename);
 
                     if (preg_match('#^' . preg_quote(DS, '#') . '#', $this->getVar('path'))
                         || preg_match('#^[a-z]:' . preg_quote(DS, '#') . '#i', $this->getVar('path'))
@@ -50,6 +41,9 @@ class Mage_Dataflow_Model_Convert_Adapter_Io extends Mage_Dataflow_Model_Convert
                         $baseDir = Mage::getBaseDir();
                         $path = $this->_resource->getCleanPath($baseDir . DS . trim($this->getVar('path'), DS));
                     }
+
+                    //validate the resolved export/import path, which is what is read and written
+                    $this->_validateLocalPath($path, $filename);
 
                     $this->_resource->checkAndCreateFolder($path);
 
@@ -82,6 +76,72 @@ class Mage_Dataflow_Model_Convert_Adapter_Io extends Mage_Dataflow_Model_Convert
         }
 
         return $this->_resource;
+    }
+
+    /**
+     * Refuse a local file name that could leave the configured path
+     *
+     * The file name is passed to Varien_Io_File::read() and write() as it is, after the
+     * path has been validated, so it must be a plain relative name below that path: no
+     * absolute name, URL scheme or stream wrapper, drive letter, NUL byte, or ".", ".."
+     * or empty segment (GHSA-gc76-8qvx-h92g). Subdirectories are allowed.
+     *
+     * @throws Mage_Core_Exception
+     */
+    public static function validateLocalFileName(string $filename): void
+    {
+        $isValid = $filename !== '' && !str_contains($filename, chr(0));
+        foreach ((array) preg_split('#[\\\\/]#', $filename) as $segment) {
+            // an empty first segment is an absolute name; a scheme or drive letter is a stream wrapper or an absolute name
+            $segment = (string) $segment;
+            if (in_array($segment, ['', '.', '..'], true) || preg_match('#^[a-z][a-z0-9+.\-]*:#i', $segment) === 1) {
+                $isValid = false;
+            }
+        }
+
+        if (!$isValid) {
+            Mage::throwException(Mage::helper('dataflow')->__(
+                'File name "%s" must be a relative name below the configured path.',
+                Mage::helper('core')->escapeHtml(str_replace(chr(0), '', $filename)),
+            ));
+        }
+    }
+
+    /**
+     * Check the resolved folder and file name against the import/export path masks
+     *
+     * The masks are relative to the OpenMage root, so the folder must be inside it. It is
+     * compared as resolved by getCleanPath(), without following symlinks, so a var/import
+     * or var/export that is a symlink to shared storage keeps working.
+     *
+     * @param  string              $path     Folder as resolved from the path variable
+     * @param  string              $filename File name, already checked by validateLocalFileName()
+     * @throws Mage_Core_Exception
+     */
+    protected function _validateLocalPath(string $path, string $filename): void
+    {
+        // getCleanPath() resolves ".." without following symlinks, so it is refused rather than resolved
+        $rawPath = (string) $this->getVar('path');
+        $folder = rtrim(str_replace('\\', '/', $path), '/') . '/';
+        $baseDir = rtrim(str_replace('\\', '/', Mage::getBaseDir()), '/') . '/';
+        if (str_contains($rawPath, chr(0))
+            || preg_match('#(^|[\\\\/])\.\.($|[\\\\/])#', $rawPath) === 1
+            || !str_starts_with($folder, $baseDir)
+        ) {
+            Mage::throwException(Mage::helper('dataflow')->__(
+                'Path "%s" is not available and cannot be used.',
+                Mage::helper('core')->escapeHtml(str_replace(chr(0), '', $rawPath)),
+            ));
+        }
+
+        /** @var Mage_Core_Model_File_Validator_AvailablePath $validator */
+        $validator = Mage::getModel('core/file_validator_availablePath');
+        $validator->setPaths(Mage::getStoreConfig(self::XML_PATH_EXPORT_LOCAL_VALID_PATH));
+        if (!$validator->isValid(substr($folder, strlen($baseDir)) . $filename)) {
+            foreach ($validator->getMessages() as $message) {
+                Mage::throwException($message);
+            }
+        }
     }
 
     /**

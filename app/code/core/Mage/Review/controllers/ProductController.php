@@ -292,16 +292,9 @@ class Mage_Review_ProductController extends Mage_Core_Controller_Front_Action
                 ->applyTemplate($product->getPageLayout());
         }
 
-        $customLayout = $product->getCustomLayoutUpdate();
-        if ($customLayout) {
-            try {
-                if (!Mage::getModel('core/layout_validator')->isValid($customLayout)) {
-                    $customLayout = '';
-                }
-            } catch (Exception) {
-                $customLayout = '';
-            }
-        }
+        // validated again: an update saved before a validator rule existed is skipped
+        $customLayout = Mage::getModel('core/layout_validator')
+            ->getValidStoredUpdate($product->getCustomLayoutUpdate(), 'product ' . $product->getId());
 
         $update->addUpdate($customLayout);
         $this->generateLayoutXml()->generateLayoutBlocks();

@@ -20,6 +20,62 @@ class Mage_Catalog_Model_Category_Attribute_Backend_Image extends Mage_Eav_Model
     }
 
     /**
+     * Refuse a new string value that is not a bare file name
+     *
+     * Uploads and the delete flag are handled in afterSave(). A string value is stored as it is
+     * and later joined onto the category media URL, so it must name a file in that directory.
+     * A value that has not changed since the category was loaded is not checked again.
+     *
+     * @param  object              $object
+     * @return $this
+     * @throws Mage_Core_Exception
+     */
+    #[Override]
+    public function beforeSave($object)
+    {
+        if (!$object instanceof Varien_Object) {
+            return $this;
+        }
+
+        parent::beforeSave($object);
+
+        $name  = $this->getAttribute()->getName();
+        $value = $object->getData($name);
+        if ($value === null || $value === '' || is_array($value)) {
+            return $this;
+        }
+
+        if ($object instanceof Mage_Core_Model_Abstract && !$object->dataHasChangedFor($name)) {
+            return $this;
+        }
+
+        if (!$this->isValidFileName($value)) {
+            Mage::throwException(Mage::helper('catalog')->__('The image file name is not valid.'));
+        }
+
+        return $this;
+    }
+
+    /**
+     * Check that a value is a bare file name: no directory part, quotes, angle brackets or control characters
+     *
+     * Spaces and mixed case are allowed, because imports set such names.
+     *
+     * @param mixed $value
+     */
+    public function isValidFileName($value): bool
+    {
+        if (!is_string($value) && !is_int($value)) {
+            return false;
+        }
+
+        $value = (string) $value;
+
+        return !in_array($value, ['', '.', '..'], true)
+            && preg_match('/[\/\\\\"\'<>\x00-\x1F\x7F]/', $value) !== 1;
+    }
+
+    /**
      * Save uploaded file and set its name to category attribute
      * @param  Varien_Object $object
      * @return $this

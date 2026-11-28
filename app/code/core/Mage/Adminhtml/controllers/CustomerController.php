@@ -23,6 +23,27 @@ class Mage_Adminhtml_CustomerController extends Mage_Adminhtml_Controller_Action
     public const ADMIN_RESOURCE = 'customer/manage';
 
     /**
+     * @inheritDoc
+     */
+    #[Override]
+    protected function _isAllowed(): bool
+    {
+        if (!parent::_isAllowed()) {
+            return false;
+        }
+
+        // Each tab action needs the permission that shows its tab (Mage_Adminhtml_Block_Customer_Edit_Tabs)
+        $session = Mage::getSingleton('admin/session');
+        return match (strtolower($this->getRequest()->getActionName())) {
+            'orders', 'lastorders' => $session->isAllowed('sales/order/actions/view'),
+            'newsletter' => $session->isAllowed('newsletter/subscriber'),
+            'productreviews' => $session->isAllowed('catalog/reviews_ratings/reviews/all'),
+            'producttags', 'taggrid' => $session->isAllowed('catalog/tag/all'),
+            default => true,
+        };
+    }
+
+    /**
      * Controller pre-dispatch method
      *
      * @return Mage_Adminhtml_Controller_Action

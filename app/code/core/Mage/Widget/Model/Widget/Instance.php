@@ -225,6 +225,10 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
         }
 
         $this->_validatePageGroup($code, $pageGroupData);
+        if (($pageGroupData['for'] ?? self::ALL_ENTITIES) === self::SPECIFIC_ENTITIES) {
+            $pageGroupData['entities'] = $this->normalizeEntityIds($pageGroupData['entities'] ?? '');
+        }
+
         return $pageGroupData;
     }
 
@@ -248,7 +252,10 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
             Mage::throwException(Mage::helper('widget')->__('Wrong widget display option specified.'));
         }
 
-        if ($for === self::SPECIFIC_ENTITIES && !isset($this->_specificEntitiesLayoutHandles[$pageGroup])) {
+        if ($for === self::SPECIFIC_ENTITIES
+            && (!isset($this->_specificEntitiesLayoutHandles[$pageGroup])
+                || $this->normalizeEntityIds($pageGroupData['entities'] ?? '') === null)
+        ) {
             Mage::throwException(Mage::helper('widget')->__('Wrong widget display option specified.'));
         }
 
@@ -257,6 +264,38 @@ class Mage_Widget_Model_Widget_Instance extends Mage_Core_Model_Abstract
         ) {
             Mage::throwException(Mage::helper('widget')->__('Templatepath or block reference contain special characters.'));
         }
+    }
+
+    /**
+     * Normalise the entity ids of a "specific" page group to a comma-separated list of ids
+     *
+     * The category and product choosers post the ids joined with commas. Whitespace around the
+     * ids is dropped. Any other value is refused, because the ids are stored as they are and
+     * shown again in the widget instance editor.
+     *
+     * @param  mixed       $entities
+     * @return null|string the normalised list ("" for no ids), or null if the value is not a list of ids
+     */
+    public function normalizeEntityIds($entities): ?string
+    {
+        if (is_int($entities) && $entities >= 0) {
+            return (string) $entities;
+        }
+
+        if (!is_string($entities)) {
+            return null;
+        }
+
+        $entities = trim($entities);
+        if ($entities === '') {
+            return '';
+        }
+
+        if (preg_match('/^\d+(?:\s*,\s*\d+)*$/D', $entities) !== 1) {
+            return null;
+        }
+
+        return (string) preg_replace('/\s+/', '', $entities);
     }
 
     /**

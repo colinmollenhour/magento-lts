@@ -208,6 +208,19 @@ abstract class Varien_Data_Form_Element_Abstract extends Varien_Data_Form_Abstra
     }
 
     /**
+     * Escape a value for use inside a quoted HTML attribute
+     *
+     * Quotes are escaped. Existing entities are not encoded again, like Varien_Object::serialize().
+     *
+     * @param  mixed  $value
+     * @return string
+     */
+    protected function _escapeAttribute($value)
+    {
+        return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
+    }
+
+    /**
      * @param  null|string $index
      * @return string
      */

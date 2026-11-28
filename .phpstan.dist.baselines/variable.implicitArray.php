@@ -32,16 +32,6 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../app/code/core/Mage/Adminhtml/controllers/Catalog/CategoryController.php',
 ];
 $ignoreErrors[] = [
-    'rawMessage' => 'Implicit array creation is not allowed - variable $data does not exist.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/code/core/Mage/Adminhtml/controllers/TagController.php',
-];
-$ignoreErrors[] = [
-    'rawMessage' => 'Implicit array creation is not allowed - variable $data might not exist.',
-    'count' => 1,
-    'path' => __DIR__ . '/../app/code/core/Mage/Adminhtml/controllers/TagController.php',
-];
-$ignoreErrors[] = [
     'rawMessage' => 'Implicit array creation is not allowed - variable $params does not exist.',
     'count' => 1,
     'path' => __DIR__ . '/../app/code/core/Mage/Catalog/Block/Layer/State.php',

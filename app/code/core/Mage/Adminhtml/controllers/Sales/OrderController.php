@@ -700,27 +700,42 @@ class Mage_Adminhtml_Sales_OrderController extends Mage_Adminhtml_Controller_Act
     #[Override]
     protected function _isAllowed(): bool
     {
+        $session = Mage::getSingleton('admin/session');
         $action = strtolower($this->getRequest()->getActionName());
-        if ($action === 'pdfcreditmemos') {
-            return Mage::getSingleton('admin/session')->isAllowed('sales/order') && $this->_canViewCreditmemos();
+
+        // These actions show order content, which the order view shows only to the View permission.
+        // The role editor grants sales/order with every Orders action, so it is never enough for them.
+        $viewActions = [
+            'pdfinvoices', 'pdfshipments', 'pdfcreditmemos', 'pdfdocs', 'commentshistory', 'addcomment',
+            'invoices', 'shipments', 'creditmemos', 'transactions',
+        ];
+        if (in_array($action, $viewActions, true) && !$session->isAllowed('sales/order/actions/view')) {
+            return false;
         }
 
         // Mass and alternate actions require the same resource as their single-order counterpart
-        $aclResource = match ($action) {
-            'hold', 'masshold' => 'sales/order/actions/hold',
-            'unhold', 'massunhold' => 'sales/order/actions/unhold',
-            'email' => 'sales/order/actions/email',
-            'cancel', 'masscancel' => 'sales/order/actions/cancel',
-            'view' => 'sales/order/actions/view',
-            'addcomment' => 'sales/order/actions/comment',
-            'creditmemos' => 'sales/order/actions/creditmemo',
-            'reviewpayment' => 'sales/order/actions/review_payment',
+        return match ($action) {
+            'pdfcreditmemos' => $this->_canViewCreditmemos(),
+            // The document tab grids need the permission that shows their tab in the order view
+            'invoices' => $session->isAllowed('sales/invoice'),
+            'shipments' => $session->isAllowed('sales/shipment'),
+            'creditmemos' => $session->isAllowed('sales/creditmemo'),
+            'transactions' => $session->isAllowed('sales/transactions'),
+            // Invoices and packing slips print the data the order view shows (pdfdocs skips credit memos itself)
+            'pdfinvoices', 'pdfshipments', 'pdfdocs', 'commentshistory' => true,
+            'hold', 'masshold' => $session->isAllowed('sales/order/actions/hold'),
+            'unhold', 'massunhold' => $session->isAllowed('sales/order/actions/unhold'),
+            'email' => $session->isAllowed('sales/order/actions/email'),
+            'cancel', 'masscancel' => $session->isAllowed('sales/order/actions/cancel'),
+            'view' => $session->isAllowed('sales/order/actions/view'),
+            // The response renders the comment history
+            'addcomment' => $session->isAllowed('sales/order/actions/comment'),
+            'reviewpayment' => $session->isAllowed('sales/order/actions/review_payment'),
             // The order view shows the Void button to the Invoice permission
-            'voidpayment' => 'sales/order/actions/invoice',
-            'address', 'addresssave' => 'sales/order/actions/edit',
-            default => 'sales/order',
+            'voidpayment' => $session->isAllowed('sales/order/actions/invoice'),
+            'address', 'addresssave' => $session->isAllowed('sales/order/actions/edit'),
+            default => $session->isAllowed('sales/order'),
         };
-        return Mage::getSingleton('admin/session')->isAllowed($aclResource);
     }
 
     /**

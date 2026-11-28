@@ -98,7 +98,8 @@ class Mage_Catalog_Model_Product_Option_Value_Api extends Mage_Catalog_Model_Api
             }
         }
 
-        $optionValueModel->setValues($data);
+        unset($optionValue, $value);
+        $optionValueModel->setValues($this->_removeExistingIds($data));
         try {
             $optionValueModel->saveValues();
         } catch (Exception $exception) {
@@ -106,6 +107,32 @@ class Mage_Catalog_Model_Product_Option_Value_Api extends Mage_Catalog_Model_Api
         }
 
         return true;
+    }
+
+    /**
+     * Remove the ids that would make add() save over an existing option value
+     *
+     * The value model updates (or with is_delete, deletes) the value an option_type_id names and moves it
+     * to this option, whichever option it belongs to. The ids are dropped rather than refused because
+     * info() and items() return value_id, so copying values to another option sends them.
+     *
+     * @param  mixed $data rows of option values
+     * @return mixed
+     */
+    protected function _removeExistingIds($data)
+    {
+        if (!is_array($data)) {
+            return $data;
+        }
+
+        foreach ($data as $index => $row) {
+            if (is_array($row)) {
+                unset($row['option_type_id'], $row['value_id']);
+                $data[$index] = $row;
+            }
+        }
+
+        return $data;
     }
 
     /**

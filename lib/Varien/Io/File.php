@@ -480,6 +480,10 @@ class Varien_Io_File extends Varien_Io_Abstract
      */
     public function read($filename, $dest = null)
     {
+        if (!$this->_isReadAllowed($filename)) {
+            throw new Exception('Detected malicious path or filename input.');
+        }
+
         if (!is_null($dest)) {
             chdir($this->_cwd);
             $result = @copy($filename, $dest);
@@ -533,14 +537,38 @@ class Varien_Io_File extends Varien_Io_Abstract
     }
 
     /**
+     * Check that a file to read stays inside the working directory set by open()/cd()
+     *
+     * Without a working directory no boundary was requested and read() behaves as it always
+     * has. With one, the same rules as for write() apply: no NUL byte, parent traversal or
+     * stream wrapper, and the file must be inside the working directory (GHSA-gc76-8qvx-h92g).
+     *
+     * @param  string $filename
+     * @return bool
+     */
+    protected function _isReadAllowed($filename)
+    {
+        if ((string) $this->_cwd === '') {
+            return true;
+        }
+
+        $filename = (string) $filename;
+
+        return !str_contains($filename, chr(0))
+            && preg_match('#(^|[\\\\/])\.\.($|[\\\\/])#', $filename) !== 1
+            && $this->_isWriteAllowed($filename);
+    }
+
+    /**
      * Check that a write target stays inside the working directory set by open()/cd()
      *
      * Without a working directory no boundary was requested, so nothing is enforced and
      * write() behaves as it always has. With one, the target folder is accepted when it is
      * inside the working directory either as written or once symlinks are resolved, so a
      * merchant-created symlink below the working directory (media or var on shared storage)
-     * keeps working while an absolute path elsewhere is refused. Parent traversal has
-     * already been rejected by write().
+     * keeps working while an absolute path elsewhere is refused. A stream wrapper name such
+     * as "file:///..." is refused, as PHP resolves it independently of the working
+     * directory. Parent traversal has already been rejected by write().
      *
      * @param  string $filename
      * @return bool
@@ -553,6 +581,10 @@ class Varien_Io_File extends Varien_Io_Abstract
         }
 
         $filename = (string) $filename;
+        if ($this->_isStreamWrapperPath($filename)) {
+            return false;
+        }
+
         if ($this->_isAbsolutePath($filename)) {
             $folder = dirname($filename);
         } else {
@@ -646,6 +678,21 @@ class Varien_Io_File extends Varien_Io_Abstract
         return str_starts_with($path, '/')
             || str_starts_with($path, '\\')
             || preg_match('#^[a-z]:[\\\\/]#i', $path) === 1;
+    }
+
+    /**
+     * Check whether PHP would hand a path to a stream wrapper rather than the local file system
+     *
+     * Any name that starts with a scheme ("file://", "php://", "data:", ...) counts, except a
+     * Windows drive letter followed by a separator, which is an absolute local path.
+     *
+     * @param  string $path
+     * @return bool
+     */
+    protected function _isStreamWrapperPath($path)
+    {
+        return preg_match('#^[a-z][a-z0-9+.\-]*:#i', $path) === 1
+            && preg_match('#^[a-z]:[\\\\/]#i', $path) !== 1;
     }
 
     /**

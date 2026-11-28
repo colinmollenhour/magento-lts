@@ -366,13 +366,15 @@ class Mage_Catalog_Model_Design extends Mage_Core_Model_Abstract
         ) {
             $customLayout = $object->getCustomLayoutUpdate();
             if ($customLayout) {
-                try {
-                    if (!Mage::getModel('core/layout_validator')->isValid($customLayout)) {
-                        $customLayout = '';
-                    }
-                } catch (Exception) {
-                    $customLayout = '';
-                }
+                // validated again: an update saved before a validator rule existed is skipped
+                $customLayout = Mage::getModel('core/layout_validator')->getValidStoredUpdate(
+                    $customLayout,
+                    sprintf(
+                        '%s %s',
+                        $object instanceof Mage_Catalog_Model_Product ? 'product' : 'category',
+                        (string) $object->getId(),
+                    ),
+                );
             }
 
             $settings->setCustomDesign($object->getCustomDesign())

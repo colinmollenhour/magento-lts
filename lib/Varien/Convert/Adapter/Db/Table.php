@@ -16,11 +16,17 @@ declare(strict_types=1);
  */
 class Varien_Convert_Adapter_Db_Table extends Varien_Convert_Adapter_Abstract
 {
+    /**
+     * Database adapter named by the type variable
+     *
+     * @throws Varien_Convert_Exception
+     * @see Varien_Convert_Adapter_Zend_Db::createDbAdapter()
+     */
     #[Override]
     public function getResource()
     {
         if (!$this->_resource) {
-            $this->_resource = Zend_Db::factory($this->getVar('type'), $this->getVars());
+            $this->_resource = Varien_Convert_Adapter_Zend_Db::createDbAdapter($this, $this->getVar('type'));
         }
 
         return $this->_resource;

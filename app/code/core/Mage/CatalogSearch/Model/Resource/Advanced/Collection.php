@@ -32,7 +32,8 @@ class Mage_CatalogSearch_Model_Resource_Advanced_Collection extends Mage_Catalog
                     $conditionData = [];
 
                     if (!is_numeric($attributeId)) {
-                        $field = 't1.' . $attributeId;
+                        // static attribute: the attribute code is the column name
+                        $field = $conn->quoteIdentifier(['t1', $attributeId]);
                     } else {
                         $storeId = $this->getStoreId();
                         $onCondition = 't1.entity_id = t2.entity_id'

@@ -118,6 +118,9 @@ class Mage_Dataflow_Model_Profile extends Mage_Core_Model_Abstract
                         . '.' . ($guiData['parse']['type'] == 'csv' ? $guiData['parse']['type'] : 'xml');
                 }
 
+                //the file name is passed to the file system as it is, see the Io adapter
+                Mage_Dataflow_Model_Convert_Adapter_Io::validateLocalFileName((string) $guiData['file']['filename']);
+
                 //validate export available path
                 $path = rtrim($guiData['file']['path'], '\\/')
                       . DS . $guiData['file']['filename'];

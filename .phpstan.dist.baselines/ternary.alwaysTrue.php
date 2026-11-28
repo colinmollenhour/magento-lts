@@ -4,11 +4,6 @@ $ignoreErrors = [];
 $ignoreErrors[] = [
     'rawMessage' => 'Ternary operator condition is always true.',
     'count' => 1,
-    'path' => __DIR__ . '/../app/code/core/Mage/Adminhtml/controllers/Catalog/Product/SetController.php',
-];
-$ignoreErrors[] = [
-    'rawMessage' => 'Ternary operator condition is always true.',
-    'count' => 1,
     'path' => __DIR__ . '/../app/code/core/Mage/Catalog/Helper/Product.php',
 ];
 $ignoreErrors[] = [

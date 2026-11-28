@@ -275,11 +275,18 @@ class Mage_Core_Helper_Data extends Mage_Core_Helper_Abstract
     /**
      * Decrypt data using application key
      *
+     * Returns an empty string while a template expression is being evaluated: template content is
+     * edited by admin roles that may not see secrets, and no template needs to decrypt anything.
+     *
      * @param  string $data
      * @return string
      */
     public function decrypt($data)
     {
+        if (Varien_Filter_Template::isProcessingVariable()) {
+            return '';
+        }
+
         if (!Mage::isInstalled()) {
             return $data;
         }

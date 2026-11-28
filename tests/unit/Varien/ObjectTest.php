@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace OpenMage\Tests\Unit\Varien;
 
+use Iterator;
 use Override;
 use OpenMage\Tests\Unit\OpenMageTest;
 use OpenMage\Tests\Unit\Traits\DataProvider\Varien\ObjectTrait;
@@ -130,6 +131,57 @@ final class ObjectTest extends OpenMageTest
 
         self::$subject->offsetUnset('off');
         self::assertFalse(self::$subject->offsetExists('off'));
+    }
+
+    /**
+     * serialize() writes HTML attributes, so a value must not be able to leave its quotes.
+     *
+     * @dataProvider provideSerializeData
+     * @param array<string, mixed> $data
+     * @param list<string>         $attributes
+     *
+     * @group Varien_Object
+     */
+    public function testSerialize(string $expectedResult, array $data, array $attributes = []): void
+    {
+        self::$subject->setData($data);
+        self::assertSame($expectedResult, self::$subject->serialize($attributes));
+    }
+
+    /**
+     * @return Iterator<string, array{0: string, 1: array<string, mixed>, 2?: list<string>}>
+     */
+    public static function provideSerializeData(): Iterator
+    {
+        yield 'plain values' => [
+            'class="input-text validate-digits" title="Qty"',
+            ['class' => 'input-text validate-digits', 'title' => 'Qty'],
+        ];
+        yield 'double quote cannot close the attribute' => [
+            'class="x&quot; onfocus=&quot;alert(1)&quot; autofocus=&quot;"',
+            ['class' => 'x" onfocus="alert(1)" autofocus="'],
+        ];
+        yield 'angle brackets, ampersand and single quote' => [
+            'title="&lt;b&gt;Fish &amp; Chips&#039;s&lt;/b&gt;"',
+            ['title' => "<b>Fish & Chips's</b>"],
+        ];
+        yield 'existing entities are not encoded again' => [
+            'title="Fish &amp; Chips &quot;Ltd&quot;"',
+            ['title' => 'Fish &amp; Chips &quot;Ltd&quot;'],
+        ];
+        yield 'inline JavaScript keeps working after the browser decodes it' => [
+            'onclick="return confirm(&#039;Sure?&#039;)"',
+            ['onclick' => "return confirm('Sure?')"],
+        ];
+        yield 'only the requested attributes' => [
+            'class="a&quot;b"',
+            ['class' => 'a"b', 'style' => 'color:red'],
+            ['class'],
+        ];
+        yield 'scalars' => [
+            'size="10" disabled="1" title=""',
+            ['size' => 10, 'disabled' => true, 'title' => null],
+        ];
     }
 
     protected function tearDown(): void

@@ -108,15 +108,23 @@ class Mage_Checkout_Model_Api_Resource_Customer extends Mage_Checkout_Model_Api_
      * Prepare quote for customer registration and customer order submit
      *
      * @return $this
+     * @throws Mage_Api_Exception
+     * @throws Mage_Core_Exception
      */
     protected function _prepareNewCustomerQuote(Mage_Sales_Model_Quote $quote)
     {
+        $customer = $quote->getCustomer();
+        // the customer is saved with the order, so registering must never write over an existing customer
+        if ($customer->getId() !== null) {
+            $this->_fault(
+                'create_order_fault',
+                Mage::helper('checkout')->__('The quote is set to register a new customer but is assigned to an existing customer.'),
+            );
+        }
+
         $billing    = $quote->getBillingAddress();
         $shipping   = $quote->isVirtual() ? null : $quote->getShippingAddress();
 
-        //$customer = Mage::getModel('customer/customer');
-        $customer = $quote->getCustomer();
-        /** @var Mage_Customer_Model_Customer $customer */
         $customerBilling = $billing->exportCustomerAddress();
         $customer->addAddress($customerBilling);
         $billing->setCustomerAddress($customerBilling);

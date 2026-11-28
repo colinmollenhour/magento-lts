@@ -180,7 +180,7 @@ var linkItems = {
             data.link_id  = 0;
             data.link_type = 'file';
             data.sample_type = 'none';
-            data.number_of_downloads = '<?php echo $this->getConfigMaxDownloads() ?>';
+            data.number_of_downloads = '<?php echo (int) $this->getConfigMaxDownloads() ?>';
         }
 
         data.id = this.itemCount;

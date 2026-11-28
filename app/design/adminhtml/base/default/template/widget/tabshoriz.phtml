@@ -12,7 +12,7 @@
  */
 ?>
 <!-- <?php if($this->getTitle()): ?>
-    <h3><?php echo $this->getTitle() ?></h3>
+    <h3><?php echo $this->escapeHtml($this->getTitle()) ?></h3>
 <?php endif ?> -->
 <?php if(!empty($tabs)): ?>
 <ul id="<?php echo $this->getId() ?>" class="tabs-horiz">

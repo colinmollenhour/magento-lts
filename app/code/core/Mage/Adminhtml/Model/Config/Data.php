@@ -185,6 +185,9 @@ class Mage_Adminhtml_Model_Config_Data extends Varien_Object
                 }
 
                 $inherit = !empty($fieldData['inherit']);
+                if (!$inherit && is_object($fieldConfig)) {
+                    $this->_validateFieldValue($fieldConfig, $fieldData['value']);
+                }
 
                 $dataObject->setPath($path)
                     ->setValue($fieldData['value']);
@@ -495,6 +498,129 @@ class Mage_Adminhtml_Model_Config_Data extends Varien_Object
     protected function _isPlainIdentifier($value)
     {
         return is_scalar($value) && preg_match('/^[a-zA-Z0-9_]+$/', (string) $value) === 1;
+    }
+
+    /**
+     * Check a posted value against the numeric validation classes and the Yes/No source its field declares
+     *
+     * The admin form applies these checks only in the browser, so a request that skips them could store any
+     * string. Each check follows its counterpart in js/prototype/validation.js, except that the classes that
+     * only compare a number (greater than zero, zero or greater, not negative) also require the value to be a
+     * number. As in the browser, an empty value passes the numeric checks.
+     *
+     * @param  Varien_Simplexml_Element $fieldConfig
+     * @param  mixed                    $value
+     * @throws Mage_Core_Exception      if the value does not pass a check
+     */
+    protected function _validateFieldValue($fieldConfig, $value): void
+    {
+        if ($value === null) {
+            return;
+        }
+
+        $label = (string) $fieldConfig->label;
+        $label = $label === '' ? $fieldConfig->getName() : Mage::helper('adminhtml')->__($label);
+
+        if ((string) $fieldConfig->frontend_type === 'select' && $this->_isBooleanSourceModel((string) $fieldConfig->source_model)) {
+            if (is_bool($value)) {
+                $value = (int) $value;
+            }
+
+            if (!is_scalar($value) || !in_array((string) $value, ['0', '1'], true)) {
+                Mage::throwException($label . ': ' . Mage::helper('core')->__('Please select an option.'));
+            }
+
+            return;
+        }
+
+        $classes = preg_split('/\s+/', trim($fieldConfig->validate . ' ' . $fieldConfig->frontend_class), -1, PREG_SPLIT_NO_EMPTY);
+        $numericClasses = array_intersect($classes === false ? [] : $classes, [
+            'validate-digits',
+            'validate-number',
+            'validate-greater-than-zero',
+            'validate-zero-or-greater',
+            'validate-not-negative-number',
+        ]);
+        if ($numericClasses === []) {
+            return;
+        }
+
+        if (!is_scalar($value)) {
+            Mage::throwException($label . ': ' . Mage::helper('core')->__('Please enter a valid number in this field.'));
+        }
+
+        $value = (string) $value;
+        if (preg_match('/^\s*$/D', $value) === 1) {
+            return;
+        }
+
+        $number = $this->_parseNumber($value);
+        foreach ($numericClasses as $class) {
+            switch ($class) {
+                case 'validate-digits':
+                    $isValid = preg_match('/^\d+$/D', $value) === 1;
+                    $message = 'Please use numbers only in this field. Please avoid spaces or other characters such as dots or commas.';
+                    break;
+                case 'validate-number':
+                    $isValid = preg_match('/^\s*-?(\d+(\.\d*)?|\.\d+)\s*$/D', $value) === 1;
+                    $message = 'Please enter a valid number in this field.';
+                    break;
+                case 'validate-greater-than-zero':
+                    $isValid = $number !== null && $number > 0;
+                    $message = 'Please enter a number greater than 0 in this field.';
+                    break;
+                default:
+                    $isValid = $number !== null && $number >= 0;
+                    $message = 'Please enter a number 0 or greater in this field.';
+            }
+
+            if (!$isValid) {
+                Mage::throwException($label . ': ' . Mage::helper('core')->__($message));
+            }
+        }
+    }
+
+    /**
+     * Whether a source model is the core Yes/No or Enable/Disable source, whose only options are 0 and 1
+     */
+    protected function _isBooleanSourceModel(string $sourceModel): bool
+    {
+        $config = Mage::getConfig();
+        if ($config === null || $sourceModel === '' || str_contains($sourceModel, '::')) {
+            return false;
+        }
+
+        return in_array($config->getModelClassName($sourceModel), [
+            Mage_Adminhtml_Model_System_Config_Source_Yesno::class,
+            Mage_Adminhtml_Model_System_Config_Source_Enabledisable::class,
+        ], true);
+    }
+
+    /**
+     * Parse a number the way parseNumber() in js/prototype/validation.js reads separators, but strictly
+     *
+     * A comma is read as the decimal separator, or as a thousands separator when a dot follows it.
+     *
+     * @return null|float the number, or null if the value is not a number
+     */
+    protected function _parseNumber(string $value): ?float
+    {
+        $value = trim($value);
+        $dot = strpos($value, '.');
+        $comma = strpos($value, ',');
+        if ($dot !== false && $comma !== false) {
+            $value = $comma > $dot
+                ? (string) preg_replace('/,/', '.', (string) preg_replace('/\./', '', $value, 1), 1)
+                : (string) preg_replace('/,/', '', $value, 1);
+        } elseif ($comma !== false) {
+            $value = (string) preg_replace('/,/', '.', $value, 1);
+        }
+
+        if (preg_match('/^-?(\d+(\.\d*)?|\.\d+)$/D', $value) !== 1) {
+            return null;
+        }
+
+        return (float) $value;
     }
 
     /**

@@ -87,5 +87,24 @@ final class PageTest extends OpenMageTest
         ];
 
         yield 'invalid XML is dropped' => ['', '<reference name="content">'];
+
+        yield 'admin grid passed as an addTab argument is dropped' => [
+            '',
+            '<reference name="content"><block type="catalog/product_view_tabs" name="t"><action method="addTab">'
+                . '<alias>g</alias><title>x</title><block>adminhtml/permissions_user_grid</block><template>widget/grid.phtml</template>'
+                . '</action><action block="g" method="setArea"><a>adminhtml</a></action></block></reference>',
+        ];
+
+        yield 'admin RSS feed passed as an addTab argument is dropped' => [
+            '',
+            '<reference name="content"><block type="catalog/product_view_tabs" name="t"><action method="addTab">'
+                . '<alias>r</alias><title>x</title><block>rss/order_new</block><template>x.phtml</template>'
+                . '</action></block></reference>',
+        ];
+
+        yield 'area switch is dropped' => [
+            '',
+            '<reference name="content"><action method="setData"><k>area</k><v>adminhtml</v></action></reference>',
+        ];
     }
 }

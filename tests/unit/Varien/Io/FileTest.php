@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace OpenMage\Tests\Unit\Varien\Io;
 
 use Exception;
+use Iterator;
 use OpenMage\Tests\Unit\OpenMageTest;
 use Override;
 use Varien_Io_File as Subject;
@@ -227,5 +228,104 @@ final class FileTest extends OpenMageTest
 
         $fileName = self::$workingDirectory . DIRECTORY_SEPARATOR . '.' . DIRECTORY_SEPARATOR . 'sub' . DIRECTORY_SEPARATOR . 'dot.txt';
         self::assertNotFalse($subject->write($fileName, 'content'));
+    }
+
+    /**
+     * GHSA-gc76-8qvx-h92g: a file:// name passed the lexical check as a relative name
+     *
+     * @group Varien_Io
+     */
+    public function testWriteRejectsStreamWrapper(): void
+    {
+        $subject = $this->getSubject();
+        $fileName = self::$siblingDirectory . DIRECTORY_SEPARATOR . 'wrapper.txt';
+
+        try {
+            $subject->write('file://' . $fileName, 'content');
+            self::fail('A stream wrapper name was written');
+        } catch (Exception $exception) {
+            self::assertSame(self::MALICIOUS_PATH_MESSAGE, $exception->getMessage());
+        }
+
+        self::assertFileDoesNotExist($fileName);
+    }
+
+    /**
+     * @group Varien_Io
+     */
+    public function testReadRelativeAndAbsoluteFileNameInsideWorkingDirectory(): void
+    {
+        file_put_contents(self::$workingDirectory . DIRECTORY_SEPARATOR . 'sub' . DIRECTORY_SEPARATOR . 'readable.txt', 'content');
+        $subject = $this->getSubject();
+
+        self::assertSame('content', $subject->read('sub/readable.txt'));
+        self::assertSame('content', $subject->read($subject->pwd() . '/sub/readable.txt'));
+    }
+
+    /**
+     * GHSA-gc76-8qvx-h92g: read() resolved absolute names, URLs and stream wrappers anywhere
+     *
+     * @dataProvider provideReadOutsideWorkingDirectory
+     * @group Varien_Io
+     */
+    public function testReadRejectsFileOutsideWorkingDirectory(string $prefix, string $suffix): void
+    {
+        file_put_contents(self::$siblingDirectory . DIRECTORY_SEPARATOR . 'secret.txt', 'secret');
+        $subject = $this->getSubject();
+
+        self::expectException(Exception::class);
+        self::expectExceptionMessage(self::MALICIOUS_PATH_MESSAGE);
+
+        $subject->read($prefix . self::$siblingDirectory . DIRECTORY_SEPARATOR . 'secret.txt' . $suffix);
+    }
+
+    /**
+     * @return Iterator<string, array{string, string}>
+     */
+    public static function provideReadOutsideWorkingDirectory(): Iterator
+    {
+        yield 'absolute' => ['', ''];
+        yield 'file wrapper' => ['file://', ''];
+        yield 'php filter' => ['php://filter/resource=', ''];
+    }
+
+    /**
+     * @group Varien_Io
+     */
+    public function testReadRejectsParentTraversal(): void
+    {
+        file_put_contents(self::$siblingDirectory . DIRECTORY_SEPARATOR . 'secret.txt', 'secret');
+        $subject = $this->getSubject();
+
+        self::expectException(Exception::class);
+        self::expectExceptionMessage(self::MALICIOUS_PATH_MESSAGE);
+
+        $subject->read('../' . basename(self::$siblingDirectory) . '/secret.txt');
+    }
+
+    /**
+     * The destination of read() is the caller's own choice and is not confined
+     *
+     * @group Varien_Io
+     */
+    public function testReadCopiesToDestinationOutsideWorkingDirectory(): void
+    {
+        file_put_contents(self::$workingDirectory . DIRECTORY_SEPARATOR . 'source-for-copy.txt', 'content');
+        $destination = self::$siblingDirectory . DIRECTORY_SEPARATOR . 'copy-destination.txt';
+        $subject = $this->getSubject();
+
+        self::assertTrue($subject->read('source-for-copy.txt', $destination));
+        self::assertSame('content', file_get_contents($destination));
+    }
+
+    /**
+     * @group Varien_Io
+     */
+    public function testReadWithoutWorkingDirectoryIsNotConfined(): void
+    {
+        $fileName = self::$siblingDirectory . DIRECTORY_SEPARATOR . 'unconfined.txt';
+        file_put_contents($fileName, 'content');
+
+        self::assertSame('content', (new Subject())->read($fileName));
     }
 }

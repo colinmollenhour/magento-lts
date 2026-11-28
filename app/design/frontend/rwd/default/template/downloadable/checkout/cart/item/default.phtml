@@ -202,7 +202,7 @@ $_deleteUrl = $this->getDeleteUrlCustom(false);
 <?php endif ?>
 <td class="product-cart-actions" data-rwd-label="<?php echo $this->__('Qty'); ?>">
     <input type="text" pattern="\d*(\.\d+)?" name="cart[<?php echo $_item->getId() ?>][qty]" value="<?php echo $this->getQty() ?>"
-           data-cart-item-id="<?php echo $this->jsQuoteEscape($_item->getSku()) ?>"
+           data-cart-item-id="<?php echo $this->escapeHtml($_item->getSku()) ?>"
            size="4" title="<?php echo Mage::helper('core')->quoteEscape($this->__('Qty')) ?>" class="input-text qty" maxlength="12" />
 
     <button type="submit" data-cart-item-update name="update_cart_action" value="update_qty" title="<?php echo Mage::helper('core')->quoteEscape($this->__('Update')); ?>" class="button btn-update"><span><span><?php echo $this->__('Update'); ?></span></span>

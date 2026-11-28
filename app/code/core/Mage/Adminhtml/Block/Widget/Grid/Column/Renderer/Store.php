@@ -68,7 +68,7 @@ class Mage_Adminhtml_Block_Widget_Grid_Column_Renderer_Store extends Mage_Adminh
         if (is_null($origStores) && $row->getStoreName()) {
             $scopes = [];
             foreach (explode("\n", $row->getStoreName()) as $k => $label) {
-                $scopes[] = str_repeat('&nbsp;', $k * 3) . $label;
+                $scopes[] = str_repeat('&nbsp;', $k * 3) . $this->escapeHtml($label);
             }
 
             return $out . (implode('<br/>', $scopes) . $this->__(' [deleted]'));

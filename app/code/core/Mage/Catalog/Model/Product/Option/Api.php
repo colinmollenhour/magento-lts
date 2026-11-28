@@ -33,12 +33,43 @@ class Mage_Catalog_Model_Product_Option_Api extends Mage_Catalog_Model_Api_Resou
             $this->_fault('invalid_type');
         }
 
+        $data = $this->_removeExistingIds($data);
         $this->_prepareAdditionalFields(
             $data,
             $product->getOptionInstance()->getGroupByType($data['type']),
         );
         $this->_saveProductCustomOption($product, $data);
         return true;
+    }
+
+    /**
+     * Remove the ids that would make add() save over an existing option or option value
+     *
+     * The option model updates (or with is_delete, deletes) the option or value an id names, whichever
+     * product it belongs to, so add() would change another product's options. The ids are dropped rather
+     * than refused because info() returns value_id for each row, so copying an option to another product
+     * sends them.
+     *
+     * @param  array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    protected function _removeExistingIds(array $data)
+    {
+        unset($data['option_id']);
+        foreach (['additional_fields', 'values'] as $rowsKey) {
+            if (!isset($data[$rowsKey]) || !is_array($data[$rowsKey])) {
+                continue;
+            }
+
+            foreach ($data[$rowsKey] as $index => $row) {
+                if (is_array($row)) {
+                    unset($row['option_id'], $row['option_type_id'], $row['value_id']);
+                    $data[$rowsKey][$index] = $row;
+                }
+            }
+        }
+
+        return $data;
     }
 
     /**

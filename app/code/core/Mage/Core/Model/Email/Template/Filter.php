@@ -610,15 +610,23 @@ class Mage_Core_Model_Email_Template_Filter extends Varien_Filter_Template
     #[Override]
     protected function _getVariable($value, $default = '{no_value_defined}')
     {
-        Mage::register('varProcessing', true);
+        // Expressions nest (an address format() renders its own template), only the outermost one owns the flag
+        $isOutermost = Mage::registry('varProcessing') === null;
+        if ($isOutermost) {
+            Mage::register('varProcessing', true);
+        }
+
         try {
             $result = parent::_getVariable($value, $default);
         } catch (Exception $exception) {
             $result = '';
             Mage::logException($exception);
+        } finally {
+            if ($isOutermost) {
+                Mage::unregister('varProcessing');
+            }
         }
 
-        Mage::unregister('varProcessing');
         return $result;
     }
 }

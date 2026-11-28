@@ -15,6 +15,63 @@
 class Mage_Catalog_Model_Product_Attribute_Api extends Mage_Catalog_Model_Api_Resource
 {
     /**
+     * Attribute properties that create() and update() take from the caller, at the top level of the input or in
+     * additional_fields. Extensions can add their own properties as child nodes of XML_PATH_ALLOWED_PROPERTIES.
+     */
+    public const ALLOWED_PROPERTIES = [
+        'apply_to',
+        'default_value',
+        'frontend_class',
+        'is_comparable',
+        'is_configurable',
+        'is_filterable',
+        'is_filterable_in_search',
+        'is_global',
+        'is_html_allowed_on_front',
+        'is_required',
+        'is_searchable',
+        'is_unique',
+        'is_used_for_price_rules',
+        'is_used_for_promo_rules',
+        'is_visible',
+        'is_visible_in_advanced_search',
+        'is_visible_on_front',
+        'is_wysiwyg_enabled',
+        'note',
+        'position',
+        'used_for_sort_by',
+        'used_in_product_listing',
+    ];
+
+    /**
+     * Keys a caller can never set through create() or update(), even when the configuration allows them: they
+     * identify the attribute, name classes that are instantiated whenever products load or save, or have their
+     * own validated input (code, input type, labels, options)
+     */
+    public const PROTECTED_PROPERTIES = [
+        'attribute_code',
+        'attribute_id',
+        'attribute_model',
+        'backend_model',
+        'backend_table',
+        'backend_type',
+        'default',
+        'entity_type_id',
+        'frontend_input',
+        'frontend_input_renderer',
+        'frontend_label',
+        'frontend_model',
+        'is_user_defined',
+        'option',
+        'source_model',
+    ];
+
+    /**
+     * Config node whose children name additional attribute properties the API accepts
+     */
+    public const XML_PATH_ALLOWED_PROPERTIES = 'global/catalog/product/attribute/api/allowed_properties';
+
+    /**
      * Product entity type id
      *
      * @var int
@@ -131,7 +188,8 @@ class Mage_Catalog_Model_Product_Attribute_Api extends Mage_Catalog_Model_Api_Re
         }
 
         //validate attribute_code
-        if (!preg_match('/^[a-z][a-z_0-9]{0,254}$/', $data['attribute_code'])) {
+        $attributeCode = $data['attribute_code'];
+        if (!is_string($attributeCode) || !preg_match('/^[a-z][a-z_0-9]{0,254}$/D', $attributeCode)) {
             $this->_fault('invalid_code');
         }
 
@@ -141,17 +199,21 @@ class Mage_Catalog_Model_Product_Attribute_Api extends Mage_Catalog_Model_Api_Re
             $allowedTypes[] = $type['value'];
         }
 
-        if (!in_array($data['frontend_input'], $allowedTypes)) {
+        $frontendInput = $data['frontend_input'] ?? null;
+        if (!in_array($frontendInput, $allowedTypes, true)) {
             $this->_fault('invalid_frontend_input');
         }
 
-        $data['source_model'] = $helper->getAttributeSourceModelByInputType($data['frontend_input']);
-        $data['backend_model'] = $helper->getAttributeBackendModelByInputType($data['frontend_input']);
-        if (!$model->getBackendType() && (is_null($model->getIsUserDefined()) || $model->getIsUserDefined() != 0)) {
-            $data['backend_type'] = $model->getBackendTypeByInput($data['frontend_input']);
-        }
-
+        // keeps only the properties a caller may set, so the values below are set after it
         $this->_prepareDataForSave($data);
+
+        $data['attribute_code'] = $attributeCode;
+        $data['frontend_input'] = $frontendInput;
+        $data['source_model'] = $helper->getAttributeSourceModelByInputType($frontendInput);
+        $data['backend_model'] = $helper->getAttributeBackendModelByInputType($frontendInput);
+        if (!$model->getBackendType() && (is_null($model->getIsUserDefined()) || $model->getIsUserDefined() != 0)) {
+            $data['backend_type'] = $model->getBackendTypeByInput($frontendInput);
+        }
 
         $model->addData($data);
         $model->setEntityTypeId($this->_entityTypeId);
@@ -183,10 +245,7 @@ class Mage_Catalog_Model_Product_Attribute_Api extends Mage_Catalog_Model_Api_Re
             $this->_fault('can_not_edit');
         }
 
-        $data['attribute_code'] = $model->getAttributeCode();
-        $data['is_user_defined'] = $model->getIsUserDefined();
-        $data['frontend_input'] = $model->getFrontendInput();
-
+        // keeps only the properties a caller may set, so the code, input type, backend and models stay as stored
         $this->_prepareDataForSave($data);
 
         $model->addData($data);
@@ -418,18 +477,45 @@ class Mage_Catalog_Model_Product_Attribute_Api extends Mage_Catalog_Model_Api_Re
     }
 
     /**
+     * Retrieve the attribute properties a caller may set through create() and update()
+     *
+     * @return list<string>
+     */
+    protected function _getAllowedProperties()
+    {
+        $allowed = self::ALLOWED_PROPERTIES;
+        $node = Mage::app()->getConfig()->getNode(self::XML_PATH_ALLOWED_PROPERTIES);
+        if ($node instanceof Mage_Core_Model_Config_Element) {
+            foreach ($node->children() as $property) {
+                $allowed[] = $property->getName();
+            }
+        }
+
+        return array_values(array_diff(array_unique($allowed), self::PROTECTED_PROPERTIES));
+    }
+
+    /**
      * Prepare request input data for saving
      *
-     * @param array $data input data
+     * Only the allowed attribute properties are kept, from the top level of the input and from additional_fields,
+     * so a caller cannot replace the attribute code, id, entity type, backend type or models.
+     *
+     * @param  array              $data input data
+     * @throws Mage_Api_Exception
      */
     protected function _prepareDataForSave(&$data)
     {
         /** @var Mage_Catalog_Helper_Data $helperCatalog */
         $helperCatalog = Mage::helper('catalog');
 
-        if ($data['scope'] == 'global') {
+        $input = $data;
+        $allowed = array_flip($this->_getAllowedProperties());
+        $data = array_intersect_key($input, $allowed);
+
+        $scope = $input['scope'] ?? null;
+        if ($scope == 'global') {
             $data['is_global'] = Mage_Catalog_Model_Resource_Eav_Attribute::SCOPE_GLOBAL;
-        } elseif ($data['scope'] == 'website') {
+        } elseif ($scope == 'website') {
             $data['is_global'] = Mage_Catalog_Model_Resource_Eav_Attribute::SCOPE_WEBSITE;
         } else {
             $data['is_global'] = Mage_Catalog_Model_Resource_Eav_Attribute::SCOPE_STORE;
@@ -444,21 +530,29 @@ class Mage_Catalog_Model_Product_Attribute_Api extends Mage_Catalog_Model_Api_Re
         $data['apply_to'] ??= [];
 
         // set frontend labels array with store_id as keys
-        if (isset($data['frontend_label']) && is_array($data['frontend_label'])) {
+        if (isset($input['frontend_label']) && is_array($input['frontend_label'])) {
             $labels = [];
-            foreach ($data['frontend_label'] as $label) {
+            foreach ($input['frontend_label'] as $label) {
                 $storeId = $label['store_id'];
                 $labelText = $helperCatalog->stripTags($label['label']);
                 $labels[$storeId] = $labelText;
             }
 
             $data['frontend_label'] = $labels;
+        } elseif (isset($input['frontend_label']) && is_scalar($input['frontend_label'])) {
+            $data['frontend_label'] = $helperCatalog->stripTags((string) $input['frontend_label']);
         }
 
         // set additional fields
-        if (isset($data['additional_fields']) && is_array($data['additional_fields'])) {
-            $data = array_merge($data, $data['additional_fields']);
-            unset($data['additional_fields']);
+        if (isset($input['additional_fields']) && is_array($input['additional_fields'])) {
+            $data = array_merge($data, array_intersect_key($input['additional_fields'], $allowed));
+        }
+
+        // the class is printed into form inputs: allow only CSS class names
+        if (isset($data['frontend_class'])
+            && (!is_string($data['frontend_class']) || preg_match('/^[a-zA-Z0-9_\- ]*$/D', $data['frontend_class']) !== 1)
+        ) {
+            $this->_fault('invalid_parameters');
         }
 
         //default value

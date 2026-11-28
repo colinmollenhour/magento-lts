@@ -38,6 +38,7 @@
 "Store View","Store View"
 "The priority must be between 0 and 1.","The priority must be between 0 and 1."
 "The sitemap ""%s"" has been generated.","The sitemap ""%s"" has been generated."
+"The sitemap file was not deleted because its path is not permitted.","The sitemap file was not deleted because its path is not permitted."
 "The sitemap has been deleted.","The sitemap has been deleted."
 "The sitemap has been saved.","The sitemap has been saved."
 "This sitemap no longer exists.","This sitemap no longer exists."

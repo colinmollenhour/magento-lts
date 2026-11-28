@@ -180,6 +180,16 @@ class Mage_Core_Model_Store extends Mage_Core_Model_Abstract
     protected $_configCache = null;
 
     /**
+     * Config paths read through this store whose value is, or contains, an encrypted config value
+     *
+     * Values are cached decrypted, so they are recorded here to hide them while a template
+     * expression is being evaluated (see Varien_Filter_Template::isProcessingVariable()).
+     *
+     * @var array<string, true>
+     */
+    protected $_encryptedConfigPaths = [];
+
+    /**
      * Base nodes of store configuration cache
      *
      * @var array
@@ -343,7 +353,7 @@ class Mage_Core_Model_Store extends Mage_Core_Model_Abstract
     public function getConfig($path)
     {
         if (isset($this->_configCache[$path])) {
-            return $this->_configCache[$path];
+            return $this->_isConfigValueHidden($path) ? null : $this->_configCache[$path];
         }
 
         $config = Mage::getConfig();
@@ -485,22 +495,45 @@ class Mage_Core_Model_Store extends Mage_Core_Model_Abstract
     protected function _processConfigValue($fullPath, $path, $node)
     {
         if (isset($this->_configCache[$path])) {
-            return $this->_configCache[$path];
+            return $this->_isConfigValueHidden($path) ? '' : $this->_configCache[$path];
         }
 
+        $hideSecrets = Varien_Filter_Template::isProcessingVariable();
         if ($node->hasChildren()) {
             $aValue = [];
+            $isCacheable = true;
             foreach ($node->children() as $key => $value) {
-                $aValue[$key] = $this->_processConfigValue($fullPath . '/' . $key, $path . '/' . $key, $value);
+                $childPath = $path . '/' . $key;
+                $aValue[$key] = $this->_processConfigValue($fullPath . '/' . $key, $childPath, $value);
+                if (isset($this->_encryptedConfigPaths[$childPath])) {
+                    $this->_encryptedConfigPaths[$path] = true;
+                }
+
+                // A child that was hidden or not cached would leave a wrong value in the cache
+                $isCacheable = $isCacheable && is_array($this->_configCache) && array_key_exists($childPath, $this->_configCache);
             }
 
-            $this->_configCache[$path] = $aValue;
+            if ($isCacheable && !$this->_isConfigValueHidden($path)) {
+                $this->_configCache[$path] = $aValue;
+            }
+
             return $aValue;
         }
 
         $sValue = (string) $node;
+        $isCacheable = true;
         if (!empty($node['backend_model']) && !empty($sValue)) {
-            $backend = Mage::getModel((string) $node['backend_model']);
+            $backendModel = (string) $node['backend_model'];
+            if ($this->_isEncryptedBackendModel($backendModel)) {
+                $this->_encryptedConfigPaths[$path] = true;
+                if ($hideSecrets) {
+                    return '';
+                }
+            }
+
+            // Decryption returns nothing while a template expression is evaluated, so do not cache what a backend returns then
+            $isCacheable = !$hideSecrets;
+            $backend = Mage::getModel($backendModel);
             $backend->setPath($path)->setValue($sValue)->afterLoad();
             $sValue = $backend->getValue();
         }
@@ -517,9 +550,39 @@ class Mage_Core_Model_Store extends Mage_Core_Model_Abstract
             }
         }
 
-        $this->_configCache[$path] = $sValue;
+        if ($isCacheable) {
+            $this->_configCache[$path] = $sValue;
+        }
 
         return $sValue;
+    }
+
+    /**
+     * Whether a cached config value must not be returned because a template expression is being
+     * evaluated and the value is, or contains, an encrypted config value
+     *
+     * Template content is edited by admin roles that may not see the store configuration, and
+     * no template needs a secret, so encrypted values read as empty whichever method a template
+     * reaches them through.
+     */
+    protected function _isConfigValueHidden(string $path): bool
+    {
+        return isset($this->_encryptedConfigPaths[$path]) && Varien_Filter_Template::isProcessingVariable();
+    }
+
+    /**
+     * Whether a config node's backend model (alias or class name) stores the value encrypted
+     */
+    protected function _isEncryptedBackendModel(string $backendModel): bool
+    {
+        $config = Mage::getConfig();
+        if (!$config instanceof Mage_Core_Model_Config) {
+            return true;
+        }
+
+        $className = $config->getModelClassName($backendModel);
+
+        return is_a($className, Mage_Adminhtml_Model_System_Config_Backend_Encrypted::class, true);
     }
 
     /**

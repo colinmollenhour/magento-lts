@@ -129,6 +129,50 @@ final class ActionAclTest extends OpenMageTest
     }
 
     /**
+     * A reorder keeps the customer and store of the reordered order unless the admin may also create orders,
+     * and the customer selection grid needs Create in every kind of session.
+     *
+     * @dataProvider provideOrderCreateDuringReorderAclData
+     * @param array<string, mixed>  $sessionData
+     * @param array<string, string> $params
+     * @param string[]              $granted
+     * @group Controller
+     */
+    public function testOrderCreateAclDuringReorder(string $action, array $sessionData, array $params, array $granted, bool $expected): void
+    {
+        $this->loginWithRole($granted);
+        $controller = $this->createController(Mage_Adminhtml_Sales_Order_CreateController::class, $action, $params, ['_getSession']);
+        $controller->method('_getSession')->willReturn(new Varien_Object($sessionData));
+
+        self::assertSame($expected, $this->isAllowed($controller));
+    }
+
+    /**
+     * The order edit controller inherits loadBlock, and its _isAllowed() does not reach the create
+     * controller's during an edit, so loadBlock itself refuses the customer grid.
+     *
+     * @group Controller
+     */
+    public function testOrderEditLoadBlockRefusesCustomerGrid(): void
+    {
+        $sessionData = ['order_id' => 12, 'customer_id' => 3, 'store_id' => 1];
+        $edit = ['sales/order/actions/edit'];
+
+        foreach (['customer_grid' => false, 'items,totals' => true] as $block => $expected) {
+            $this->loginWithRole($edit);
+            $controller = $this->createController(Mage_Adminhtml_Sales_Order_EditController::class, 'loadBlock', ['block' => $block], ['_getSession']);
+            $controller->method('_getSession')->willReturn(new Varien_Object($sessionData));
+
+            self::assertTrue($this->isAllowed($controller), $block);
+            self::assertSame($expected, (new ReflectionMethod($controller, '_isLoadBlockAllowed'))->invoke($controller), $block);
+        }
+
+        $this->loginWithRole([...$edit, 'sales/order/actions/create']);
+        $controller = $this->createController(Mage_Adminhtml_Sales_Order_EditController::class, 'loadBlock', ['block' => 'customer_grid'], []);
+        self::assertTrue((new ReflectionMethod($controller, '_isLoadBlockAllowed'))->invoke($controller));
+    }
+
+    /**
      * The Dataflow Profiles (GUI) permission reaches only wizard-built profiles and their batches.
      *
      * @dataProvider provideDataflowGuiAclData
@@ -218,6 +262,36 @@ final class ActionAclTest extends OpenMageTest
         );
 
         self::assertSame($expected, $this->isAllowed($controller));
+    }
+
+    /**
+     * getParam('tag_id') prefers the route parameter, so a posted tag_id is checked as well.
+     *
+     * @dataProvider provideTagPostedIdAclData
+     * @param array<int, int> $statuses
+     * @param string[]        $granted
+     * @group Controller
+     */
+    public function testTagPostedIdAcl(string $action, ?string $routeTagId, string $postedTagId, array $statuses, array $granted, bool $expected): void
+    {
+        $this->loginWithRole($granted);
+        $controller = $this->createController(
+            Mage_Adminhtml_TagController::class,
+            $action,
+            $routeTagId === null ? [] : ['tag_id' => $routeTagId],
+            ['_getTagStatuses'],
+        );
+        $controller->method('_getTagStatuses')->willReturnCallback(
+            static fn(array $tagIds): array => array_intersect_key($statuses, array_flip($tagIds)),
+        );
+
+        $previousPost = $_POST;
+        $controller->getRequest()->setPost(['tag_id' => $postedTagId]);
+        try {
+            self::assertSame($expected, $this->isAllowed($controller));
+        } finally {
+            $_POST = $previousPost;
+        }
     }
 
     /**

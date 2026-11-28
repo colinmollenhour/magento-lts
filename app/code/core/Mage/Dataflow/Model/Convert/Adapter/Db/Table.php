@@ -16,11 +16,17 @@ declare(strict_types=1);
  */
 class Mage_Dataflow_Model_Convert_Adapter_Db_Table extends Mage_Dataflow_Model_Convert_Adapter_Abstract
 {
+    /**
+     * Database adapter named by the type variable
+     *
+     * @throws Mage_Dataflow_Model_Convert_Exception
+     * @see Mage_Dataflow_Model_Convert_Adapter_Zend_Db::createDbAdapter()
+     */
     #[Override]
     public function getResource()
     {
         if (!$this->_resource) {
-            $this->_resource = Zend_Db::factory($this->getVar('type'), $this->getVars());
+            $this->_resource = Mage_Dataflow_Model_Convert_Adapter_Zend_Db::createDbAdapter($this, $this->getVar('type'));
         }
 
         return $this->_resource;

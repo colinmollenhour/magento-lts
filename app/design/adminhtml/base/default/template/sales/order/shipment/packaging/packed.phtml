@@ -19,7 +19,7 @@
                 <div class="package">
                     <?php $package = new Varien_Object($package) ?>
                     <?php $params = new Varien_Object($package->getParams()) ?>
-                    <h4><?php echo Mage::helper('sales')->__('Package') . ' ' . $packageId ?></h4>
+                    <h4><?php echo Mage::helper('sales')->__('Package') . ' ' . $this->escapeHtml($packageId) ?></h4>
                     <div class="package-info">
                         <table class="package-options" cellspacing="0">
                             <colgroup>
@@ -37,7 +37,7 @@
                                     <th><?php echo Mage::helper('sales')->__('Length') ?></th>
                                     <td>
                                         <?php if ($params->getLength() != null): ?>
-                                            <?php echo $params->getLength() .' '. Mage::helper('usa')->getMeasureDimensionName($params->getDimensionUnits()) ?>
+                                            <?php echo $this->escapeHtml($params->getLength()) . ' ' . Mage::helper('usa')->getMeasureDimensionName($params->getDimensionUnits()) ?>
                                         <?php else: ?>
                                             --
                                         <?php endif ?>
@@ -56,12 +56,12 @@
                                         <td><?php echo $this->displayCustomsPrice($params->getCustomsValue()) ?></td>
                                     <?php else: ?>
                                         <th><?php echo Mage::helper('sales')->__('Total Weight') ?></th>
-                                        <td><?php echo $params->getWeight() .' '. Mage::helper('usa')->getMeasureWeightName($params->getWeightUnits()) ?></td>
+                                        <td><?php echo $this->escapeHtml($params->getWeight()) . ' ' . Mage::helper('usa')->getMeasureWeightName($params->getWeightUnits()) ?></td>
                                     <?php endif ?>
                                     <th><?php echo Mage::helper('sales')->__('Width') ?></th>
                                     <td>
                                         <?php if ($params->getWidth() != null): ?>
-                                            <?php echo $params->getWidth() .' '. Mage::helper('usa')->getMeasureDimensionName($params->getDimensionUnits()) ?>
+                                            <?php echo $this->escapeHtml($params->getWidth()) . ' ' . Mage::helper('usa')->getMeasureDimensionName($params->getDimensionUnits()) ?>
                                         <?php else: ?>
                                             --
                                         <?php endif ?>
@@ -81,7 +81,7 @@
                                 <tr>
                                     <?php if ($this->displayCustomsValue()): ?>
                                         <th><?php echo Mage::helper('sales')->__('Total Weight') ?></th>
-                                        <td><?php echo $params->getWeight() .' '. Mage::helper('usa')->getMeasureWeightName($params->getWeightUnits()) ?></td>
+                                        <td><?php echo $this->escapeHtml($params->getWeight()) . ' ' . Mage::helper('usa')->getMeasureWeightName($params->getWeightUnits()) ?></td>
                                     <?php else: ?>
                                         <th>&nbsp;</th>
                                         <td>&nbsp;</td>
@@ -89,7 +89,7 @@
                                     <th><?php echo Mage::helper('sales')->__('Height') ?></th>
                                     <td>
                                         <?php if ($params->getHeight() != null): ?>
-                                            <?php echo $params->getHeight() .' '. Mage::helper('usa')->getMeasureDimensionName($params->getDimensionUnits()) ?>
+                                            <?php echo $this->escapeHtml($params->getHeight()) . ' ' . Mage::helper('usa')->getMeasureDimensionName($params->getDimensionUnits()) ?>
                                         <?php else: ?>
                                             --
                                         <?php endif ?>
@@ -100,14 +100,14 @@
                                 <tr>
                                     <?php if ($params->getSize()): ?>
                                         <th><?php echo Mage::helper('sales')->__('Size') ?></th>
-                                        <td><?php echo ucfirst(strtolower($params->getSize())) ?></td>
+                                        <td><?php echo $this->escapeHtml(ucfirst(strtolower($params->getSize()))) ?></td>
                                     <?php else: ?>
                                         <th>&nbsp;</th>
                                         <td>&nbsp;</td>
                                     <?php endif ?>
                                     <?php if ($params->getGirth()): ?>
                                         <th><?php echo Mage::helper('sales')->__('Girth') ?></th>
-                                        <td><?php echo $params->getGirth() .' '. Mage::helper('usa')->getMeasureDimensionName($params->getGirthDimensionUnits()) ?></td>
+                                        <td><?php echo $this->escapeHtml($params->getGirth()) . ' ' . Mage::helper('usa')->getMeasureDimensionName($params->getGirthDimensionUnits()) ?></td>
                                     <?php else: ?>
                                         <th>&nbsp;</th>
                                         <td>&nbsp;</td>
@@ -148,10 +148,10 @@
                                     <?php $item = new Varien_Object($item) ?>
                                     <tr title="#" id="" class="">
                                         <td class="name">
-                                            <?php echo $item->getName(); ?>
+                                            <?php echo $this->escapeHtml($item->getName()); ?>
                                         </td>
                                         <td class="a-center weight ">
-                                            <?php echo $item->getWeight(); ?>
+                                            <?php echo $this->escapeHtml($item->getWeight()); ?>
                                         </td>
                                         <?php if ($this->displayCustomsValue()): ?>
                                             <td class="a-right"><?php echo $this->displayCustomsPrice($item->getCustomsValue()) ?></td>

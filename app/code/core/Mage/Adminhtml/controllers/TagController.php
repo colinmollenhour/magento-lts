@@ -132,11 +132,9 @@ class Mage_Adminhtml_TagController extends Mage_Adminhtml_Controller_Action
     public function saveAction()
     {
         if ($postData = $this->getRequest()->getPost()) {
-            if (isset($postData['tag_id'])) {
-                $data['tag_id'] = $postData['tag_id'];
-            }
-
-            $data['name']               = trim($postData['tag_name']);
+            // The tag is the one _initTag() loads (and _isAllowed() checked), never a posted tag_id
+            $data = [];
+            $data['name']              = trim($postData['tag_name']);
             $data['status']             = $postData['tag_status'];
             $data['base_popularity']    = $postData['base_popularity'] ?? 0;
             $data['store']              = $postData['store_id'];
@@ -341,16 +339,34 @@ class Mage_Adminhtml_TagController extends Mage_Adminhtml_Controller_Action
 
     /**
      * Whether the request only touches existing tags that are awaiting approval
+     *
+     * Checks every tag id the request carries, wherever an action may read it from: tag[] for the
+     * mass actions, tag_id for the others (getParam() prefers the route parameter, so the posted
+     * one is checked as well). A request that names a pending tag in one place and another tag
+     * elsewhere is refused.
      */
     protected function _isPendingTagRequest(): bool
     {
         $request = $this->getRequest();
-        $tagIds = $request->getParam('tag');
-        if (!is_array($tagIds)) {
-            $tagIds = [$request->getParam('tag_id')];
+        $candidates = $request->getParam('tag');
+        $candidates = is_array($candidates) ? $candidates : [$candidates];
+        $candidates[] = $request->getParam('tag_id');
+        $candidates[] = $request->getPost('tag_id');
+
+        $tagIds = [];
+        foreach ($candidates as $tagId) {
+            if ($tagId === null || $tagId === '') {
+                continue;
+            }
+
+            if (!is_scalar($tagId) || (int) $tagId <= 0) {
+                return false;
+            }
+
+            $tagIds[(int) $tagId] = (int) $tagId;
         }
 
-        $tagIds = array_unique(array_filter(array_map(intval(...), $tagIds), static fn(int $tagId): bool => $tagId > 0));
+        $tagIds = array_values($tagIds);
         if ($tagIds === []) {
             return false;
         }

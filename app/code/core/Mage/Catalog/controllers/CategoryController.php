@@ -86,7 +86,10 @@ class Mage_Catalog_CategoryController extends Mage_Core_Controller_Front_Action
                     ->applyHandle($category->getPageLayout());
             }
 
-            $update->addUpdate($category->getCustomLayoutUpdate());
+            $update->addUpdate(
+                Mage::getModel('core/layout_validator')
+                    ->getValidStoredUpdate($category->getCustomLayoutUpdate(), 'category ' . $category->getId()),
+            );
         }
 
         return $this;

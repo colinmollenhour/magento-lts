@@ -699,7 +699,11 @@ class Varien_Object implements ArrayAccess
     }
 
     /**
-     * serialize object attributes
+     * Serialize object attributes as HTML attributes (key="value" pairs)
+     *
+     * Each value is HTML-escaped, quotes included, so a value cannot break out of its
+     * attribute. Existing entities are not encoded again, so values that callers have
+     * already escaped are output unchanged.
      *
      * @param  array  $attributes
      * @param  string $valueSeparator
@@ -716,6 +720,7 @@ class Varien_Object implements ArrayAccess
 
         foreach ($this->_data as $key => $value) {
             if (in_array($key, $attributes)) {
+                $value = htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8', false);
                 $data[] = $key . $valueSeparator . $quote . $value . $quote;
             }
         }

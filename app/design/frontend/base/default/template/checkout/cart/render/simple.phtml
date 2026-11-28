@@ -40,7 +40,7 @@
     <?php endif ?>
     <td class="a-center">
         <input name="cart[<?php echo $_item->getId() ?>][qty]" value="<?php echo $this->getItemQty($_item) ?>"
-               data-cart-item-id="<?php echo $this->jsQuoteEscape($_item->getSku()) ?>"
+               data-cart-item-id="<?php echo $this->escapeHtml($_item->getSku()) ?>"
                size="4" class="input-text qty" maxlength="12" />
     </td>
     <?php if ($this->helper('tax')->displayCartPriceExclTax() || $this->helper('tax')->displayCartBothPrices()): ?>

@@ -97,13 +97,17 @@ class Mage_Core_Model_Observer
     }
 
     /**
-     * Checks method availability for processing in variable
+     * Refuses to save or delete a model while a template expression is being evaluated
      *
      * @return $this
      * @throws Exception
      */
     public function secureVarProcessing(Varien_Event_Observer $observer)
     {
+        if (Varien_Filter_Template::isProcessingVariable()) {
+            Mage::throwException(Mage::helper('core')->__('Disallowed template variable method.'));
+        }
+
         if (Mage::registry('varProcessing')) {
             Mage::throwException(Mage::helper('core')->__('Disallowed template variable method.'));
         }
